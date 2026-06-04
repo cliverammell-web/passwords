@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Passwords</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1d1b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Passwords">
+<style>
+  :root {
+    --bg:        #f2f1ee;
+    --surface:   #ffffff;
+    --surface2:  #e8e6e1;
+    --border:    #d0cdc7;
+    --text:      #1a1917;
+    --muted:     #6b6860;
+    --accent:    #2a5caa;
+    --accent2:   #1a3d72;
+    --reveal:    #b85c00;
+    --reveal2:   #8a4400;
+    --note:      #2a7a4f;
+    --note2:     #1a5235;
+    --add:       #555250;
+    --add2:      #333130;
+    --danger:    #c0392b;
+    --shadow:    0 2px 8px rgba(0,0,0,0.08);
+    --radius:    12px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:       #111110;
+      --surface:  #1e1d1b;
+      --surface2: #2a2926;
+      --border:   #3a3835;
+      --text:     #f0ede8;
+      --muted:    #8a8780;
+      --accent:   #5b8dd9;
+      --accent2:  #4070bb;
+      --reveal:   #e07a30;
+      --reveal2:  #c06020;
+      --note:     #4aaa74;
+      --note2:    #2a7a4f;
+      --add:      #888580;
+      --add2:     #666360;
+      --danger:   #e05545;
+      --shadow:   0 2px 10px rgba(0,0,0,0.35);
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0 0 80px 0;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 20px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow);
+  }
+
+  header h1 {
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  #search {
+    width: 100%;
+    padding: 11px 16px 11px 42px;
+    font-size: 16px;
+    font-family: inherit;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--muted); }
+
+  .search-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 16px;
+    pointer-events: none;
+  }
+
+  #clear-btn {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 6px;
+    display: none;
+    line-height: 1;
+  }
+
+  .suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    z-index: 200;
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    font-size: 15px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:active, .suggestion-item:hover { background: var(--surface2); }
+
+  .suggestion-item mark {
+    background: none;
+    color: var(--accent);
+    font-weight: bold;
+  }
+
+  /* Result card */
+  #result-card {
+    margin: 16px 16px 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: none;
+  }
+
+  .card-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-org {
+    font-size: 19px;
+    font-weight: bold;
+    letter-spacing: 0.01em;
+    flex: 1;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 5px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--muted);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    line-height: 1.3;
+  }
+
+  .icon-btn:active { transform: scale(0.93); }
+
+  .icon-btn.edit:hover  { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .icon-btn.delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
+
+  /* Confirm dialog overlay */
+  #confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #confirm-overlay.show { display: flex; }
+
+  .confirm-box {
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 22px 18px;
+    max-width: 300px;
+    width: 90%;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    text-align: center;
+  }
+
+  .confirm-box p {
+    font-size: 15px;
+    line-height: 1.5;
+    margin-bottom: 20px;
+    color: var(--text);
+  }
+
+  .confirm-box strong { color: var(--danger); }
+
+  .confirm-btns {
+    display: flex;
+    gap: 10px;
+  }
+
+  .confirm-btns button {
+    flex: 1;
+    padding: 11px;
+    border: none;
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-cancel-confirm { background: var(--surface2); color: var(--text); }
+  .btn-cancel-confirm:hover { background: var(--border); }
+  .btn-delete-confirm { background: var(--danger); color: #fff; }
+  .btn-delete-confirm:hover { filter: brightness(0.88); }
+
+  .card-body {
+    padding: 14px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .info-row {
+    display: none;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-size: 15px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+
+  .info-row.visible { display: block; }
+
+  .info-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .info-value {
+    font-size: 16px;
+    font-family: 'Courier New', monospace;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 18px 16px;
+  }
+
+  .action-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 8px;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-family: inherit;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    color: #fff;
+    text-align: center;
+  }
+
+  .action-btn:active { transform: scale(0.96); }
+
+  .btn-password { background: var(--reveal); }
+  .btn-password:hover { background: var(--reveal2); }
+  .btn-password.active { background: var(--reveal2); }
+
+  .btn-email { background: var(--accent); }
+  .btn-email:hover { background: var(--accent2); }
+  .btn-email.active { background: var(--accent2); }
+
+  .btn-notes { background: var(--note); }
+  .btn-notes:hover { background: var(--note2); }
+  .btn-notes.active { background: var(--note2); }
+
+  /* No match / Add new */
+  #no-match {
+    margin: 16px 16px 0;
+    display: none;
+    text-align: center;
+  }
+
+  #no-match p {
+    color: var(--muted);
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+
+  #no-match strong { color: var(--text); }
+
+  /* Add form */
+  #add-form {
+    margin: 16px 16px 0;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: none;
+  }
+
+  .form-header {
+    padding: 14px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .form-title {
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 0.04em;
+  }
+
+  .form-close {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+  }
+
+  .form-body {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .form-field label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+
+  .form-field input, .form-field textarea {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 15px;
+    font-family: inherit;
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .form-field textarea {
+    resize: vertical;
+    min-height: 70px;
+  }
+
+  .form-field input:focus,
+  .form-field textarea:focus { border-color: var(--accent); }
+
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0 18px 18px;
+  }
+
+  .btn-save {
+    flex: 1;
+    padding: 13px;
+    background: var(--add);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 14px;
+    font-family: inherit;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .btn-save:hover { background: var(--add2); }
+  .btn-save:active { transform: scale(0.97); }
+
+  /* Floating buttons */
+  #fab {
+    position: fixed;
+    bottom: 22px;
+    right: 20px;
+    z-index: 300;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: var(--add);
+    color: #fff;
+    border: none;
+    font-size: 26px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.15s;
+  }
+
+  #fab:active { transform: scale(0.92); background: var(--add2); }
+
+  #fab-export {
+    position: fixed;
+    bottom: 22px;
+    left: 20px;
+    z-index: 300;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.15s;
+  }
+
+  #fab-export:active { transform: scale(0.92); background: var(--accent2); }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text);
+    color: var(--bg);
+    padding: 9px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 999;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .empty-state {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>&#x1F511; Passwords</h1>
+  <div class="search-wrap">
+    <span class="search-icon">&#x2315;</span>
+    <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
+    <button id="clear-btn" onclick="clearSearch()">&#x2715;</button>
+    <div class="suggestions" id="suggestions"></div>
+  </div>
+</header>
+
+<div id="result-card">
+  <div class="card-header">
+    <div class="card-org" id="card-org"></div>
+    <div class="card-actions">
+      <button class="icon-btn edit" onclick="editCurrentEntry()" title="Edit">&#x270E; Edit</button>
+      <button class="icon-btn delete" onclick="confirmDelete()" title="Delete">&#x1F5D1;</button>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="info-row" id="row-password">
+      <div class="info-label">Password</div>
+      <div class="info-value" id="val-password"></div>
+    </div>
+    <div class="info-row" id="row-email">
+      <div class="info-label">Email Address</div>
+      <div class="info-value" id="val-email"></div>
+    </div>
+    <div class="info-row" id="row-notes">
+      <div class="info-label">Notes</div>
+      <div class="info-value" id="val-notes"></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="action-btn btn-password" onclick="toggleField('password')">&#x1F441; Password</button>
+    <button class="action-btn btn-email" onclick="toggleField('email')">&#x2709; Email</button>
+    <button class="action-btn btn-notes" onclick="toggleField('notes')">&#x1F4CB; Notes</button>
+  </div>
+</div>
+
+<div id="no-match">
+  <p>No entry found for <strong id="no-match-term"></strong></p>
+  <button class="btn-save" style="max-width:200px;margin:0 auto;display:block;" onclick="showAddForm(true)">+ Add New Entry</button>
+</div>
+
+<div id="add-form">
+  <div class="form-header">
+    <div class="form-title" id="form-title">New Entry</div>
+    <button class="form-close" onclick="hideAddForm()">&#x2715;</button>
+  </div>
+  <div class="form-body">
+    <div class="form-field">
+      <label>Organisation / Website</label>
+      <input type="text" id="f-org" placeholder="e.g. Amazon" autocorrect="off">
+    </div>
+    <div class="form-field">
+      <label>Email Address</label>
+      <input type="email" id="f-email" placeholder="your@email.com">
+    </div>
+    <div class="form-field">
+      <label>Password</label>
+      <input type="text" id="f-password" placeholder="password or code" autocorrect="off" autocomplete="off">
+    </div>
+    <div class="form-field">
+      <label>Notes</label>
+      <textarea id="f-notes" placeholder="Any additional info…"></textarea>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button class="btn-save" onclick="saveEntry()">Save Entry</button>
+  </div>
+</div>
+
+<div class="empty-state" id="empty-state">
+  Start typing a company or website name above
+</div>
+
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <p>Delete <strong id="confirm-org-name"></strong>?<br>This cannot be undone.</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel-confirm" onclick="hideConfirm()">Cancel</button>
+      <button class="btn-delete-confirm" onclick="deleteCurrentEntry()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<button id="fab-export" onclick="exportFile()" title="Export updated file">&#x1F4BE;</button>
+<button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
+<div id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+// Paste your full dataset here. Each entry: { org, email, password, notes }
+// Entries are kept in localStorage so new additions persist across sessions.
+
+const SEED_DATA = [
+  {"org":"4id_11","email":"cliverammell@gmail.com","password":"9.1","notes":"(4id)"},
+  {"org":"AbeBooks.co.uk","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Abellio","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Adobe ID","email":"cliverammell@outlook.com","password":"9.1","notes":"1959-06-01"},
+  {"org":"AEAT (ES Tax)","email":"","password":"","notes":"NIE, digital cert"},
+  {"org":"Aena","email":"cliverammell@outlook.com","password":"9.1!","notes":""},
+  {"org":"Alibaba","email":"aliexpress.cjr@gmail.com","password":"google login","notes":""},
+  {"org":"AliExpress","email":"cliverammell@gmail.com","password":"google login","notes":""},
+  {"org":"All4","email":"cliverammell@gmail.com","password":"9.1","notes":"1969-01-01"},
+  {"org":"Amazon.co.uk","email":"cliverammell@outlook.com","password":"9.2!","notes":"633205674"},
+  {"org":"Asus","email":"","password":"2006-03-02","notes":""},
+  {"org":"Autotrader","email":"with CR google account","password":"","notes":""},
+  {"org":"Avast","email":"cliverammell@outlook.com","password":"91","notes":""},
+  {"org":"Backup","email":"","password":"B….3..8","notes":""},
+  {"org":"Barbican","email":"cliverammell@outlook.com","password":"9.1","notes":"3177793"},
+  {"org":"BBC","email":"cliverammell@outlook.com","password":"9.2","notes":""},
+  {"org":"Bolt","email":"cliverammell@gmail.com","password":"google login","notes":""},
+  {"org":"Book Depository","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Booking.com","email":"cliverammell@gmail.com","password":"google login","notes":""},
+  {"org":"Brittany Ferries","email":"cliverammell@outlook.com","password":"9.1!","notes":"brittany"},
+  {"org":"Cajamar Bank","email":"cliverammell@outlook.com","password":"9.2","notes":"70026032 | 11…5/5..4"},
+  {"org":"Caravan club","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Charles Stanley Direct","email":"cliverammell@outlook.com","password":"9.1","notes":"cjr3535, hempstead, (charles)"},
+  {"org":"ChatGPT","email":"google login","password":"","notes":""},
+  {"org":"Chrono24","email":"cliverammell@gmail.com","password":"9.1","notes":""},
+  {"org":"Claude","email":"google login","password":"","notes":""},
+  {"org":"CloudPlus","email":"cliverammell@outlook.com","password":"9.1","notes":"(Cloud)"},
+  {"org":"Coches.net","email":"with CR google account","password":"","notes":"From 10/24"},
+  {"org":"Congestion charging","email":"","password":"9.1","notes":"117963724"},
+  {"org":"CREWE","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"CSJ","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Cyberghost8","email":"cliverammell@outlook.com","password":"9.1!","notes":"cyber"},
+  {"org":"Daily (tsohost.com)","email":"cliverammell@outlook.com","password":"9.1","notes":"7802718184 | tsohost"},
+  {"org":"Dart","email":"cliverammell@gmail.com","password":"9.1","notes":"1209351349, V | Dart"},
+  {"org":"Dfordog","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Digital Theatre","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Discogs","email":"cliverammell@gmail.com","password":"9.2!","notes":""},
+  {"org":"DropBox","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Dunnes","email":"cliverammell@outlook.com","password":"9.1!","notes":"1959-01-01 | Wise DC"},
+  {"org":"Duolingo","email":"cliverammell@outlook.com","password":"9.1","notes":"Clive608495 | from 8/11/19"},
+  {"org":"EasyJet","email":"cliverammell@outlook.com","password":"9.1!","notes":""},
+  {"org":"EasyPark","email":"cliverammell@outlook.com","password":"9.1","notes":"SMS login | 34633205674"},
+  {"org":"ebay","email":"cliverammell@outlook.com","password":"9.3!","notes":"cjr35.. / 9439 | 633205674"},
+  {"org":"eDreams","email":"with cliverammell@gmail account","password":"","notes":""},
+  {"org":"Electric gates (Way-Fi)","email":"","password":"","notes":"1..3.5"},
+  {"org":"ENO","email":"mail@cliverammell.co.uk","password":"9.1","notes":"1970-01-01"},
+  {"org":"Epson","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Facebook","email":"","password":"9.1","notes":"+34 633 … ..4"},
+  {"org":"First Direct","email":"cliverammell@outlook.com","password":"9.2","notes":"Cjr35.. / 9439/ 1..3.5 pin, 869021958, 4659467716078600, N.....h, Be..a.5.., (first) CC bday. | w.t..eld"},
+  {"org":"Freecycle","email":"cliverammell@outlook.com","password":"9.1","notes":"CJR35"},
+  {"org":"Funding Circle","email":"cliverammell@outlook.com","password":"9.3!??","notes":"CJR | …..g…n"},
+  {"org":"Galaxy Tab","email":"","password":"Be...3..8","notes":""},
+  {"org":"Genie","email":"","password":"9.1","notes":"3..6Be....8..!"},
+  {"org":"Glyndebourne","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Google - cliverammell","email":"cliverammell@gmail.com","password":"9.10!","notes":"633205674"},
+  {"org":"Google - ythcalendar","email":"ythcalendar@gmail.com","password":"9.4!","notes":"1970-01-01"},
+  {"org":"Google – aliexpress","email":"aliexpress.cjr@gmail.com","password":"9.8!","notes":"1970-01-01"},
+  {"org":"GotoGate","email":"cliverammell@outlook.com","password":"","notes":""},
+  {"org":"Government gateway","email":"cliverammell@outlook.com","password":"9.2!","notes":"BAPQD98472LR | cc birth date, Ian, Norwich (Government)"},
+  {"org":"Gumtree","email":"","password":"","notes":"login with ythcalendar@gmail.com account"},
+  {"org":"HappyCow","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Heritage Passport (Historic England)","email":"cliverammell@outlook.com","password":"9.1","notes":"heritage"},
+  {"org":"hfsiwg@gmail.com","email":"","password":"be...12..","notes":""},
+  {"org":"Highways Agency","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"HomeGroup","email":"","password":"pZ4dB9TT9d","notes":""},
+  {"org":"Idagio","email":"gmail account","password":"","notes":"from July 2022 | cancelled from Aug 2022"},
+  {"org":"Idealista","email":"gmail account","password":"","notes":"from May 26 | SMS verification"},
+  {"org":"Ikea","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Ikea wireless network","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Invaluable","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Irrigatia Ltd","email":"cliverammell@outlook.com","password":"9","notes":""},
+  {"org":"iSubscribe","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Issuu","email":"cliverammell@outlook.com","password":"9.1","notes":"issue.com/cjr35"},
+  {"org":"ITV","email":"clive@uclmail.net","password":"9.1","notes":"clive ramel | 1959-01-01"},
+  {"org":"Keys","email":"cliverammell@outlook.com","password":"9.1","notes":"Wise DC registered | 2026-03-20"},
+  {"org":"Kiwi","email":"","password":"","notes":""},
+  {"org":"Kyak","email":"","password":"","notes":"google login"},
+  {"org":"Kyero","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Land Registry","email":"","password":"9.1","notes":"cjr3538 | land"},
+  {"org":"Lastminute.com","email":"mail@chriscarrick.co.uk","password":".Las….","notes":""},
+  {"org":"Lenovo","email":"","password":"B.....5.5","notes":""},
+  {"org":"LeroyMerlin","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"LINN","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Lobster (Chris)","email":"chriscarrick@outlook.com","password":"9.1","notes":""},
+  {"org":"Lobster (Clive)","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"M&S","email":"cliverammell@outlook.com","password":"9.1","notes":"(marks)"},
+  {"org":"Media Markt","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Medici","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Mercedes App","email":"cliverammell@outlook.com","password":"9.1!","notes":"2025-04-05"},
+  {"org":"Mercedes EPC","email":"emanualonline","password":"","notes":"admin"},
+  {"org":"Merlin","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"MetOpera","email":"cliverammell@outlook.com","password":"9.1","notes":"CliveRammell | metopera"},
+  {"org":"Microsoft","email":"cliverammell@outlook.com","password":"9.12!!","notes":"633205674 | cliverammell@gmail.com"},
+  {"org":"moneySupermarket","email":"cliverammell@outlook.com","password":"9.1","notes":"money"},
+  {"org":"Morehandles","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Morrisons","email":"cliverammell@outlook.com","password":"9.1","notes":"clive"},
+  {"org":"N26","email":"cliverammell@outlook.com","password":"9.1!","notes":"2024-10-30"},
+  {"org":"National Trust","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Nationwide","email":"cliverammell@outlook.com","password":"11…5","notes":"2324490606, Bon..e, 24.619.6, CR | No…ch"},
+  {"org":"…..verified by VISA","email":"void?","password":"Be...3..5","notes":"MRCJRAMMEL1"},
+  {"org":"Nationwide -esavings","email":"","password":"","notes":"68074213"},
+  {"org":"ndors","email":"cliverammell@outlook.com","password":"9.1","notes":"363050509465820 | 1197"},
+  {"org":"Netlify","email":"1chriscarrick@gmail.com","password":"9.1!B..r.3..5","notes":""},
+  {"org":"Netlify_2","email":"gmail account","password":"","notes":""},
+  {"org":"Netflix","email":"cliverammell@gmail.com","password":"9.5!","notes":""},
+  {"org":"nominet","email":"Clive Rammell","password":"","notes":"13407646"},
+  {"org":"NordVPN","email":"cliverammell@outlook.com","password":"9.1!","notes":"nord"},
+  {"org":"Norfolk & Norwich Festival","email":"cliverammell@outlook.com","password":"9.1","notes":"(Norfolk)"},
+  {"org":"Norfolk County Council","email":"cliverammell@outlook.com","password":"9.1!","notes":""},
+  {"org":"Norfolk Passport","email":"cliverammell@outlook.com","password":"","notes":""},
+  {"org":"nominet","email":"Clive Rammell","password":"","notes":"13407646"},
+  {"org":"Norwich City Council","email":"cliverammell@outlook.com","password":"9.1!","notes":""},
+  {"org":"Norwich Theatre Royal","email":"cliverammell@outlook.com","password":"9.1 (NTR)","notes":"RAMM442821"},
+  {"org":"NowTV","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"NRM portal","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"NS&I","email":"cliverammell@outlook.com","password":"9.1","notes":"41 056 008 598 (NS&I no.), 286244711, 41 055 996 788 | (nsandi)"},
+  {"org":"NuCom_2.4","email":"","password":"","notes":"89ffZ4ag2"},
+  {"org":"NuCom_B06353","email":"","password":"","notes":"9baffEdd08"},
+  {"org":"Operaonvideo","email":"cliverammell@gmail.com","password":"9.1","notes":"CJR35 | opera"},
+  {"org":"Opodo","email":"login with cliverammell@gmail accoumt","password":"","notes":""},
+  {"org":"OS maps","email":"cliverammell@outlook.com","password":"Be...3..8","notes":""},
+  {"org":"Outlook","email":"PVUA4-ZYBSQ-DTAAD-247WY-MCZAJ","password":"9.12!!","notes":"cliverammell@outlook.com | BD. 01/01/1959"},
+  {"org":"Outlook mobile","email":"","password":"5335","notes":""},
+  {"org":"OwnersDirect","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"P&O","email":"cliverammell@outlook.com","password":"B.....5.5","notes":""},
+  {"org":"Passwallet","email":"","password":"","notes":""},
+  {"org":"PayPal","email":"cliverammell@outlook.com","password":"9.5!","notes":"633205674"},
+  {"org":"PayPal Spain","email":"cliverammell@gmail.com","password":"9.5!","notes":""},
+  {"org":"Perplexity","email":"cliverammell@gmail.com","password":"google login","notes":"cliverammell"},
+  {"org":"Petlog","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"petmeds","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Planning Portal","email":"cliverammell@outlook.com","password":"9.1","notes":"planning"},
+  {"org":"Presto Classical","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Reyker","email":"","password":"9.1","notes":"REY00035066"},
+  {"org":"Rightmove","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"RingGo","email":"cliverammell@gmail.com","password":"9.1!","notes":"Wise DC, 23/03/26, Tel: 633.0...4 | 5861KDX"},
+  {"org":"ROH","email":"cliverammell@outlook.com","password":"9.1","notes":"ROH"},
+  {"org":"Router","email":"admin","password":"9.1","notes":"router"},
+  {"org":"Router Casita","email":"Clive","password":"9.1","notes":"La_Casita (CASAC2025) | router"},
+  {"org":"Royal Albert Hall","email":"cliverammell@outlook.com","password":"9.1!","notes":"RAH"},
+  {"org":"Royal Mail","email":"cliverammell@outlook.com","password":"9.1","notes":"8360"},
+  {"org":"RyanAir","email":"cliverammell@gmail.com","password":"google login","notes":""},
+  {"org":"Sainsburys","email":"cliverammell@outlook.com","password":"9.1","notes":"CliveJRamm1, 21724 | same pin as NW"},
+  {"org":"Samsung","email":"cliverammell@outlook.com","password":"9.5!","notes":"1959-01-01"},
+  {"org":"Samsung S10 & Moto G7","email":"","password":"finger and 2..3.6 No fingerprint on G7","notes":""},
+  {"org":"Samsung Tab","email":"","password":"Be...3..8","notes":"need when restarting and sceen lock"},
+  {"org":"Smassa Malaga","email":"cliverammell@outlook.com","password":"9.1","notes":"Wise DC"},
+  {"org":"Solarman","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Southbank Centre","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"SPAB","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Spanish Dict","email":"linked to google account","password":"","notes":"CliveJR"},
+  {"org":"St Stephens Gate Medical Prac","email":"cliverammell@outlook.com","password":"9.1","notes":"system"},
+  {"org":"Stanstead Airport","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Starling","email":"cliverammell@outlook.com","password":"9.1","notes":"1..3.5, from 13/4/20 | CC no plus 2"},
+  {"org":"Swinton Insurance","email":"cliverammell@outlook.com","password":"9.1","notes":"cjr3535"},
+  {"org":"Sworders","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Teatro alla Scala","email":"cliverammell@outlook.com","password":"9","notes":""},
+  {"org":"TFL (congestion charge) CC","email":"Spain Address","password":"9.1","notes":"2008903273, 2.0..6, Wlodowski, 01/01/56, London | tfl"},
+  {"org":"Theatre Royal Norwich","email":"cliverammell@outlook.com","password":"9.1","notes":"a/c no. 301111 | theatreroyal"},
+  {"org":"thinkSpain","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"TLC","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Toolstation","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Tripcase","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"TWGaze","email":"cliverammell@outlook.com","password":"9.1","notes":"79004933622 | NW CC"},
+  {"org":"U","email":"1chriscarrick@gmail.com","password":"Bet..3..5","notes":""},
+  {"org":"Uber","email":"cliverammell@outlook.com","password":"9.1!","notes":"google account"},
+  {"org":"UCL","email":"clive@uclmail.net","password":"9.1","notes":""},
+  {"org":"UKTV","email":"cliverammell@outlook.com","password":"9.1!","notes":"from March 2024"},
+  {"org":"ViaVerde","email":"cliverammell@outlook.com","password":"9.1","notes":"(Via)"},
+  {"org":"Viking","email":"cliverammell@outlook.com","password":"9.1","notes":"5503321"},
+  {"org":"VisitLisboa","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Vista","email":"cliverammell@outlook.com","password":"9.1","notes":"8546-5544-3063"},
+  {"org":"Vueling","email":"cliverammell@outlook.com","password":"9.1!","notes":""},
+  {"org":"Warm-glass","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Waterstones","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"WebRoot","email":"cliverammell@outlook.com","password":"9.1","notes":"Hem……"},
+  {"org":"Wellcome Institute","email":"cliverammell@outlook.com","password":"9.1","notes":"cjr3535"},
+  {"org":"WEX photographic","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"What Hifi","email":"cliverammell@outlook.com","password":"9.1","notes":"cjr35"},
+  {"org":"WikiLoc","email":"cliverammell@outlook.com","password":"9.1","notes":"cjr35"},
+  {"org":"Wigmore Hall","email":"cliverammell@outlook.com","password":"9.1","notes":""},
+  {"org":"Wise","email":"cliverammell@outlook.com","password":"9.3!","notes":"1.03.5 and finger"},
+  {"org":"World Pay","email":"","password":"9.1","notes":"wp1551156 | 2005-03-01"},
+  {"org":"YouTube","email":"cliverammell@gmail.com","password":"9.3!","notes":"35..CR | Old 9.2"}
+];
+
+// ── STORAGE ───────────────────────────────────────────────────────────────────
+const STORE_KEY = 'pw_entries_v2';
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  // First run: seed and save
+  saveData(SEED_DATA);
+  return SEED_DATA.slice();
+}
+
+function saveData(entries) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); } catch(e) {}
+}
+
+let data = loadData();
+let currentEntry = null;
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+const searchEl   = document.getElementById('search');
+const suggestEl  = document.getElementById('suggestions');
+const clearBtn   = document.getElementById('clear-btn');
+const resultCard = document.getElementById('result-card');
+const noMatch    = document.getElementById('no-match');
+const addForm    = document.getElementById('add-form');
+const emptyState = document.getElementById('empty-state');
+
+searchEl.addEventListener('input', onSearchInput);
+searchEl.addEventListener('keydown', e => { if (e.key === 'Escape') clearSearch(); });
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) hideSuggestions();
+});
+
+function onSearchInput() {
+  const q = searchEl.value.trim();
+  clearBtn.style.display = q ? 'block' : 'none';
+  hideResult();
+  hideAddForm();
+
+  if (!q) {
+    hideSuggestions();
+    emptyState.style.display = 'block';
+    return;
+  }
+
+  emptyState.style.display = 'none';
+  const matches = data.filter(d => d.org.toLowerCase().includes(q.toLowerCase()));
+
+  if (matches.length === 0) {
+    hideSuggestions();
+    showNoMatch(q);
+    return;
+  }
+
+  noMatch.style.display = 'none';
+  renderSuggestions(matches, q);
+}
+
+function renderSuggestions(matches, q) {
+  suggestEl.innerHTML = '';
+  matches.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'suggestion-item';
+    const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+    div.innerHTML = entry.org.replace(re, '<mark>$1</mark>');
+    div.addEventListener('click', () => selectEntry(entry));
+    suggestEl.appendChild(div);
+  });
+  suggestEl.style.display = 'block';
+}
+
+function hideSuggestions() {
+  suggestEl.style.display = 'none';
+}
+
+function selectEntry(entry) {
+  currentEntry = entry;
+  searchEl.value = entry.org;
+  clearBtn.style.display = 'block';
+  hideSuggestions();
+  noMatch.style.display = 'none';
+  emptyState.style.display = 'none';
+  showCard(entry);
+}
+
+function clearSearch() {
+  searchEl.value = '';
+  clearBtn.style.display = 'none';
+  hideSuggestions();
+  hideResult();
+  hideAddForm();
+  noMatch.style.display = 'none';
+  emptyState.style.display = 'block';
+  currentEntry = null;
+  searchEl.focus();
+}
+
+// ── CARD ──────────────────────────────────────────────────────────────────────
+function showCard(entry) {
+  document.getElementById('card-org').textContent = entry.org;
+  document.getElementById('val-password').textContent = entry.password || '(none set)';
+  document.getElementById('val-email').textContent = entry.email || '(none set)';
+  document.getElementById('val-notes').textContent = entry.notes || '(none)';
+
+  // Reset all rows hidden
+  ['password','email','notes'].forEach(f => {
+    document.getElementById('row-' + f).classList.remove('visible');
+    document.querySelector('.btn-' + f).classList.remove('active');
+  });
+
+  resultCard.style.display = 'block';
+}
+
+function hideResult() {
+  resultCard.style.display = 'none';
+}
+
+function toggleField(field) {
+  const row = document.getElementById('row-' + field);
+  const btn = document.querySelector('.btn-' + field);
+  const isVisible = row.classList.contains('visible');
+  row.classList.toggle('visible', !isVisible);
+  btn.classList.toggle('active', !isVisible);
+}
+
+// ── NO MATCH ──────────────────────────────────────────────────────────────────
+function showNoMatch(q) {
+  document.getElementById('no-match-term').textContent = '"' + q + '"';
+  noMatch.style.display = 'block';
+}
+
+// ── ADD / EDIT FORM ───────────────────────────────────────────────────────────
+let editMode = false; // true when editing an existing entry
+
+function showAddForm(prefill) {
+  editMode = false;
+  document.getElementById('form-title').textContent = 'New Entry';
+  addForm.style.display = 'block';
+  hideResult();
+  noMatch.style.display = 'none';
+  emptyState.style.display = 'none';
+
+  document.getElementById('f-org').value = prefill ? searchEl.value.trim() : '';
+  document.getElementById('f-email').value = '';
+  document.getElementById('f-password').value = '';
+  document.getElementById('f-notes').value = '';
+
+  setTimeout(() => document.getElementById('f-org').focus(), 100);
+}
+
+function editCurrentEntry() {
+  if (!currentEntry) return;
+  editMode = true;
+  document.getElementById('form-title').textContent = 'Edit Entry';
+  addForm.style.display = 'block';
+  hideResult();
+  emptyState.style.display = 'none';
+
+  document.getElementById('f-org').value = currentEntry.org;
+  document.getElementById('f-email').value = currentEntry.email || '';
+  document.getElementById('f-password').value = currentEntry.password || '';
+  document.getElementById('f-notes').value = currentEntry.notes || '';
+
+  setTimeout(() => document.getElementById('f-password').focus(), 100);
+}
+
+function hideAddForm() {
+  addForm.style.display = 'none';
+  editMode = false;
+}
+
+function saveEntry() {
+  const org = document.getElementById('f-org').value.trim();
+  if (!org) { showToast('Please enter an organisation name'); return; }
+
+  const entry = {
+    org,
+    email:    document.getElementById('f-email').value.trim(),
+    password: document.getElementById('f-password').value.trim(),
+    notes:    document.getElementById('f-notes').value.trim()
+  };
+
+  const idx = data.findIndex(d => d.org.toLowerCase() === org.toLowerCase());
+  if (idx >= 0) {
+    data[idx] = entry;
+    showToast('Updated: ' + org);
+  } else {
+    const insertAt = data.findIndex(d => d.org.toLowerCase() > org.toLowerCase());
+    if (insertAt === -1) data.push(entry);
+    else data.splice(insertAt, 0, entry);
+    showToast('Saved: ' + org);
+  }
+
+  saveData(data);
+  hideAddForm();
+  searchEl.value = org;
+  clearBtn.style.display = 'block';
+  currentEntry = entry;
+  showCard(entry);
+}
+
+// ── DELETE ────────────────────────────────────────────────────────────────────
+function confirmDelete() {
+  if (!currentEntry) return;
+  document.getElementById('confirm-org-name').textContent = currentEntry.org;
+  document.getElementById('confirm-overlay').classList.add('show');
+}
+
+function hideConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('show');
+}
+
+function deleteCurrentEntry() {
+  if (!currentEntry) return;
+  const org = currentEntry.org;
+  data = data.filter(d => d.org !== currentEntry.org);
+  saveData(data);
+  hideConfirm();
+  clearSearch();
+  showToast('Deleted: ' + org);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── EXPORT ────────────────────────────────────────────────────────────────────
+// Reads the current HTML file, splices in the live data, and downloads it.
+// The exported file is a complete standalone copy with all edits baked in.
+function exportFile() {
+  // Serialise current data as formatted JSON
+  const jsonLines = data.map(e =>
+    '  ' + JSON.stringify(e)
+  ).join(',\n');
+  const newSeedBlock = 'const SEED_DATA = [\n' + jsonLines + '\n];';
+
+  // Grab the page's own source
+  const html = document.documentElement.outerHTML;
+
+  // Replace the SEED_DATA block with the live data
+  const updated = html.replace(
+    /const SEED_DATA = \[[\s\S]*?\];/,
+    newSeedBlock
+  );
+
+  // Also bump the store key so the exported file loads fresh data
+  const timestamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  const versioned = updated.replace(
+    /const STORE_KEY = '[^']+';/,
+    `const STORE_KEY = 'pw_entries_${timestamp}';`
+  );
+
+  const blob = new Blob([versioned], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'passwords.html';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported — save to Google Drive');
+}
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
