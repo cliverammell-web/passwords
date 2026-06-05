@@ -518,9 +518,101 @@
     font-size: 14px;
     line-height: 1.8;
   }
+
+  /* PIN lock screen */
+  #pin-screen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    padding: 40px 24px;
+  }
+
+  #pin-screen h2 {
+    font-size: 13px;
+    font-weight: normal;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  #pin-screen .pin-icon {
+    font-size: 40px;
+    margin-bottom: 20px;
+  }
+
+  .pin-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .pin-form input {
+    width: 100%;
+    padding: 13px 18px;
+    font-size: 22px;
+    font-family: 'Courier New', monospace;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    outline: none;
+    text-align: center;
+    letter-spacing: 0.3em;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .pin-form input:focus { border-color: var(--accent); }
+
+  .pin-form button {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-family: inherit;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .pin-form button:active { opacity: 0.8; }
+
+  .pin-error {
+    font-size: 12px;
+    color: #c0392b;
+    min-height: 18px;
+    text-align: center;
+  }
+
+  #app-content { display: none; }
 </style>
 </head>
 <body>
+
+<div id="pin-screen">
+  <div class="pin-icon">&#x1F511;</div>
+  <h2>Passwords</h2>
+  <div class="pin-form">
+    <input type="password" id="pin-input" placeholder="• • • •" autocomplete="off">
+    <div class="pin-error" id="pin-error"></div>
+    <button onclick="checkPin()">Unlock</button>
+  </div>
+</div>
+
+<div id="app-content">
 
 <header>
   <h1>&#x1F511; Passwords</h1>
@@ -853,7 +945,7 @@ function onSearchInput() {
   }
 
   emptyState.style.display = 'none';
-  const matches = data.filter(d => d.org.toLowerCase().includes(q.toLowerCase()));
+  const matches = data.filter(d => d.org.toLowerCase().startsWith(q.toLowerCase()));
 
   if (matches.length === 0) {
     hideSuggestions();
@@ -1072,10 +1164,41 @@ function exportFile() {
   URL.revokeObjectURL(url);
   showToast('Exported — save to Google Drive');
 }
+// ── PIN AUTH ──────────────────────────────────────────────────────────────────
+const PIN = 'YOUR_PIN_HERE';
+const PIN_SESSION_KEY = 'pw_pin_auth';
+
+if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
+  unlockApp();
+}
+
+document.getElementById('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPin();
+  document.getElementById('pin-error').textContent = '';
+});
+
+function checkPin() {
+  const val = document.getElementById('pin-input').value;
+  if (val === PIN) {
+    sessionStorage.setItem(PIN_SESSION_KEY, 'true');
+    unlockApp();
+  } else {
+    document.getElementById('pin-error').textContent = 'Incorrect PIN';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+  }
+}
+
+function unlockApp() {
+  document.getElementById('pin-screen').style.display = 'none';
+  document.getElementById('app-content').style.display = 'block';
+}
+
 // ── SERVICE WORKER ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 </script>
+</div>
 </body>
 </html>
