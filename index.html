@@ -699,7 +699,7 @@
 </div>
 
 <button id="fab-export" onclick="exportFile()" title="Export data as JSON">💾</button>
-<button id="fab-import" onclick="importFile()" title="Import JSON backup" style="position:fixed;bottom:5rem;right:1rem;width:3.2rem;height:3.2rem;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:1.4rem;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;">📥</button>
+<button id="fab-import" onclick="importFile()" title="Import JSON backup" style="position:fixed;bottom:5rem;right:1rem;width:3.2rem;height:3.2rem;border-radius:50%;background:#2a7a2a;color:#fff;border:none;font-size:1.3rem;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;z-index:100;">📥</button>
 <button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
 <div id="toast"></div>
 
@@ -948,12 +948,11 @@ function showToast(msg) {
 // The exported file is a complete standalone copy with all edits baked in.
 function exportFile() {
   const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  const date = new Date().toISOString().slice(0,10);
-  a.download = 'passwords-backup-' + date + '.json';
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'passwords-backup-' + new Date().toISOString().slice(0,10) + '.json';
   a.click();
   URL.revokeObjectURL(url);
   showToast('Exported — save to Google Drive');
@@ -971,24 +970,10 @@ function importFile() {
       try {
         const imported = JSON.parse(ev.target.result);
         if (!Array.isArray(imported)) throw new Error('Invalid format');
-        // Merge: add entries not already present (matched by org)
-        const existing = new Set(data.map(d => d.org.toLowerCase()));
-        let added = 0;
-        imported.forEach(entry => {
-          if (!existing.has((entry.org||'').toLowerCase())) {
-            data.push(entry);
-            added++;
-          }
-        });
-        if (added === 0) {
-          // All already exist — offer to overwrite
-          if (confirm('All entries already exist. Replace all data with imported file?')) {
-            data = imported.slice();
-          } else return;
-        }
+        data = imported.slice();
         saveData(data);
         renderList(data);
-        showToast('Imported ' + (added || imported.length) + ' entries');
+        showToast('Imported ' + data.length + ' entries');
       } catch(err) {
         alert('Import failed: ' + err.message);
       }
@@ -996,26 +981,10 @@ function importFile() {
     reader.readAsText(file);
   };
   input.click();
-}';`
-  );
-
-  const blob = new Blob([versioned], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'passwords.html';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Exported — save to Google Drive');
 }
 // ── PIN AUTH ──────────────────────────────────────────────────────────────────
 const PIN_HASH = '06aed7e09c148e73bb324fc552c7f0e29d3772bcadf0ddcf9769ee3f3890b42a';
 const PIN_SESSION_KEY = 'pw_pin_auth';
-
-async function hashPin(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
 
 if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
   unlockApp();
@@ -1028,7 +997,8 @@ document.getElementById('pin-input').addEventListener('keydown', e => {
 
 async function checkPin() {
   const val = document.getElementById('pin-input').value;
-  const hash = await hashPin(val);
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
+  const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   if (hash === PIN_HASH) {
     sessionStorage.setItem(PIN_SESSION_KEY, 'true');
     unlockApp();
