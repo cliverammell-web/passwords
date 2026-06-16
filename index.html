@@ -600,7 +600,7 @@
 </head>
 <body>
 
-<div id="pin-screen" style="display: none;">
+<div id="pin-screen" style="display: block;">
   <div class="pin-icon">🔑</div>
   <h2>Passwords</h2>
   <div class="pin-form">
@@ -610,15 +610,15 @@
   </div>
 </div>
 
-<div id="app-content" style="display: block;">
+<div id="app-content" style="display: none;">
 
 <header>
   <h1>🔑 Passwords</h1>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
     <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button id="clear-btn" onclick="clearSearch()" style="display: block;">✕</button>
-    <div class="suggestions" id="suggestions" style="display: block;"><div class="suggestion-item"><mark>Goo</mark>gle - cliverammell</div><div class="suggestion-item"><mark>Goo</mark>gle - ythcalendar</div><div class="suggestion-item"><mark>Goo</mark>gle – aliexpress</div></div>
+    <button id="clear-btn" onclick="clearSearch()" style="display: none;">✕</button>
+    <div class="suggestions" id="suggestions" style="display:none;"></div><div class="suggestion-item"><mark>Goo</mark>gle - ythcalendar</div><div class="suggestion-item"><mark>Goo</mark>gle – aliexpress</div></div>
   </div>
 </header>
 
