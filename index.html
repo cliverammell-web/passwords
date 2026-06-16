@@ -1,6 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Passwords</title>
@@ -602,8 +600,8 @@
 </head>
 <body>
 
-<div id="pin-screen">
-  <div class="pin-icon">&#x1F511;</div>
+<div id="pin-screen" style="display: none;">
+  <div class="pin-icon">🔑</div>
   <h2>Passwords</h2>
   <div class="pin-form">
     <input type="password" id="pin-input" placeholder="• • • •" autocomplete="off">
@@ -612,56 +610,56 @@
   </div>
 </div>
 
-<div id="app-content">
+<div id="app-content" style="display: block;">
 
 <header>
-  <h1>&#x1F511; Passwords</h1>
+  <h1>🔑 Passwords</h1>
   <div class="search-wrap">
-    <span class="search-icon">&#x2315;</span>
+    <span class="search-icon">⌕</span>
     <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button id="clear-btn" onclick="clearSearch()">&#x2715;</button>
-    <div class="suggestions" id="suggestions"></div>
+    <button id="clear-btn" onclick="clearSearch()" style="display: block;">✕</button>
+    <div class="suggestions" id="suggestions" style="display: block;"><div class="suggestion-item"><mark>Goo</mark>gle - cliverammell</div><div class="suggestion-item"><mark>Goo</mark>gle - ythcalendar</div><div class="suggestion-item"><mark>Goo</mark>gle – aliexpress</div></div>
   </div>
 </header>
 
-<div id="result-card">
+<div id="result-card" style="display: none;">
   <div class="card-header">
-    <div class="card-org" id="card-org"></div>
+    <div class="card-org" id="card-org">Nationwide</div>
     <div class="card-actions">
-      <button class="icon-btn edit" onclick="editCurrentEntry()" title="Edit">&#x270E; Edit</button>
-      <button class="icon-btn delete" onclick="confirmDelete()" title="Delete">&#x1F5D1;</button>
+      <button class="icon-btn edit" onclick="editCurrentEntry()" title="Edit">✎ Edit</button>
+      <button class="icon-btn delete" onclick="confirmDelete()" title="Delete">🗑</button>
     </div>
   </div>
   <div class="card-body">
-    <div class="info-row" id="row-password">
+    <div class="info-row visible" id="row-password">
       <div class="info-label">Password</div>
-      <div class="info-value" id="val-password"></div>
+      <div class="info-value" id="val-password">11…5</div>
     </div>
-    <div class="info-row" id="row-email">
+    <div class="info-row visible" id="row-email">
       <div class="info-label">Email Address</div>
-      <div class="info-value" id="val-email"></div>
+      <div class="info-value" id="val-email">cliverammell@outlook.com</div>
     </div>
-    <div class="info-row" id="row-notes">
+    <div class="info-row visible" id="row-notes">
       <div class="info-label">Notes</div>
-      <div class="info-value" id="val-notes"></div>
+      <div class="info-value" id="val-notes">2324490606, Bon..e, 24.619.6, CR | No…ch</div>
     </div>
   </div>
   <div class="btn-row">
-    <button class="action-btn btn-password" onclick="toggleField('password')">&#x1F441; Password</button>
-    <button class="action-btn btn-email" onclick="toggleField('email')">&#x2709; Email</button>
-    <button class="action-btn btn-notes" onclick="toggleField('notes')">&#x1F4CB; Notes</button>
+    <button class="action-btn btn-password active" onclick="toggleField('password')">👁 Password</button>
+    <button class="action-btn btn-email active" onclick="toggleField('email')">✉ Email</button>
+    <button class="action-btn btn-notes active" onclick="toggleField('notes')">📋 Notes</button>
   </div>
 </div>
 
-<div id="no-match">
+<div id="no-match" style="display: none;">
   <p>No entry found for <strong id="no-match-term"></strong></p>
   <button class="btn-save" style="max-width:200px;margin:0 auto;display:block;" onclick="showAddForm(true)">+ Add New Entry</button>
 </div>
 
-<div id="add-form">
+<div id="add-form" style="display: none;">
   <div class="form-header">
     <div class="form-title" id="form-title">New Entry</div>
-    <button class="form-close" onclick="hideAddForm()">&#x2715;</button>
+    <button class="form-close" onclick="hideAddForm()">✕</button>
   </div>
   <div class="form-body">
     <div class="form-field">
@@ -686,7 +684,7 @@
   </div>
 </div>
 
-<div class="empty-state" id="empty-state">
+<div class="empty-state" id="empty-state" style="display: none;">
   Start typing a company or website name above
 </div>
 
@@ -700,7 +698,7 @@
   </div>
 </div>
 
-<button id="fab-export" onclick="exportFile()" title="Export updated file">&#x1F4BE;</button>
+<button id="fab-export" onclick="exportFile()" title="Export updated file">💾</button>
 <button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
 <div id="toast"></div>
 
@@ -897,7 +895,7 @@ const SEED_DATA = [
 ];
 
 // ── STORAGE ───────────────────────────────────────────────────────────────────
-const STORE_KEY = 'pw_entries_v2';
+const STORE_KEY = 'pw_entries_20260611';
 
 function loadData() {
   try {
@@ -1165,8 +1163,13 @@ function exportFile() {
   showToast('Exported — save to Google Drive');
 }
 // ── PIN AUTH ──────────────────────────────────────────────────────────────────
-const PIN = '220336';
+const PIN_HASH = '06aed7e09c148e73bb324fc552c7f0e29d3772bcadf0ddcf9769ee3f3890b42a';
 const PIN_SESSION_KEY = 'pw_pin_auth';
+
+async function hashPin(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
 
 if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
   unlockApp();
@@ -1177,9 +1180,10 @@ document.getElementById('pin-input').addEventListener('keydown', e => {
   document.getElementById('pin-error').textContent = '';
 });
 
-function checkPin() {
+async function checkPin() {
   const val = document.getElementById('pin-input').value;
-  if (val === PIN) {
+  const hash = await hashPin(val);
+  if (hash === PIN_HASH) {
     sessionStorage.setItem(PIN_SESSION_KEY, 'true');
     unlockApp();
   } else {
@@ -1200,5 +1204,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 </div>
-</body>
-</html>
+
+
+</body></html>
