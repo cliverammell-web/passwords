@@ -698,7 +698,8 @@
   </div>
 </div>
 
-<button id="fab-export" onclick="exportFile()" title="Export updated file">💾</button>
+<button id="fab-export" onclick="exportFile()" title="Export data as JSON">💾</button>
+<button id="fab-import" onclick="importFile()" title="Import JSON backup" style="position:fixed;bottom:5rem;right:1rem;width:3.2rem;height:3.2rem;border-radius:50%;background:var(--accent);color:#fff;border:none;font-size:1.4rem;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;z-index:100;display:flex;align-items:center;justify-content:center;">📥</button>
 <button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
 <div id="toast"></div>
 
@@ -946,26 +947,56 @@ function showToast(msg) {
 // Reads the current HTML file, splices in the live data, and downloads it.
 // The exported file is a complete standalone copy with all edits baked in.
 function exportFile() {
-  // Serialise current data as formatted JSON
-  const jsonLines = data.map(e =>
-    '  ' + JSON.stringify(e)
-  ).join(',\n');
-  const newSeedBlock = 'const SEED_DATA = [];';
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  const date = new Date().toISOString().slice(0,10);
+  a.download = 'passwords-backup-' + date + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported — save to Google Drive');
+}
 
-  // Grab the page's own source
-  const html = document.documentElement.outerHTML;
-
-  // Replace the SEED_DATA block with the live data
-  const updated = html.replace(
-    /const SEED_DATA = \[[\s\S]*?\];/,
-    newSeedBlock
-  );
-
-  // Also bump the store key so the exported file loads fresh data
-  const timestamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
-  const versioned = updated.replace(
-    /const STORE_KEY = '[^']+';/,
-    `const STORE_KEY = 'pw_entries_${timestamp}';`
+function importFile() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!Array.isArray(imported)) throw new Error('Invalid format');
+        // Merge: add entries not already present (matched by org)
+        const existing = new Set(data.map(d => d.org.toLowerCase()));
+        let added = 0;
+        imported.forEach(entry => {
+          if (!existing.has((entry.org||'').toLowerCase())) {
+            data.push(entry);
+            added++;
+          }
+        });
+        if (added === 0) {
+          // All already exist — offer to overwrite
+          if (confirm('All entries already exist. Replace all data with imported file?')) {
+            data = imported.slice();
+          } else return;
+        }
+        saveData(data);
+        renderList(data);
+        showToast('Imported ' + (added || imported.length) + ' entries');
+      } catch(err) {
+        alert('Import failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}';`
   );
 
   const blob = new Blob([versioned], { type: 'text/html' });
