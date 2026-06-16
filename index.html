@@ -486,6 +486,28 @@
 
   #fab-export:active { transform: scale(0.92); background: var(--accent2); }
 
+  #fab-import {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: #2a7a2a;
+    color: #fff;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, transform 0.15s;
+  }
+  #fab-import:active { opacity: 0.8; }
+
   /* Toast */
   #toast {
     position: fixed;
@@ -618,30 +640,30 @@
     <span class="search-icon">⌕</span>
     <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
     <button id="clear-btn" onclick="clearSearch()" style="display: none;">✕</button>
-    <div class="suggestions" id="suggestions" style="display:none;"></div><div class="suggestion-item"><mark>Goo</mark>gle - ythcalendar</div><div class="suggestion-item"><mark>Goo</mark>gle – aliexpress</div></div>
+    <div class="suggestions" id="suggestions" style="display:none;"></div>
   </div>
 </header>
 
 <div id="result-card" style="display: none;">
   <div class="card-header">
-    <div class="card-org" id="card-org">Nationwide</div>
+    <div class="card-org" id="card-org"></div>
     <div class="card-actions">
       <button class="icon-btn edit" onclick="editCurrentEntry()" title="Edit">✎ Edit</button>
       <button class="icon-btn delete" onclick="confirmDelete()" title="Delete">🗑</button>
     </div>
   </div>
   <div class="card-body">
-    <div class="info-row visible" id="row-password">
+    <div class="info-row" id="row-password">
       <div class="info-label">Password</div>
-      <div class="info-value" id="val-password">11…5</div>
+      <div class="info-value" id="val-password"></div>
     </div>
-    <div class="info-row visible" id="row-email">
+    <div class="info-row" id="row-email">
       <div class="info-label">Email Address</div>
-      <div class="info-value" id="val-email">cliverammell@outlook.com</div>
+      <div class="info-value" id="val-email"></div>
     </div>
-    <div class="info-row visible" id="row-notes">
+    <div class="info-row" id="row-notes">
       <div class="info-label">Notes</div>
-      <div class="info-value" id="val-notes">2324490606, Bon..e, 24.619.6, CR | No…ch</div>
+      <div class="info-value" id="val-notes"></div>
     </div>
   </div>
   <div class="btn-row">
@@ -699,7 +721,7 @@
 </div>
 
 <button id="fab-export" onclick="exportFile()" title="Export data as JSON">💾</button>
-<button id="fab-import" onclick="importFile()" title="Import JSON backup" style="position:fixed;bottom:5rem;right:1rem;width:3.2rem;height:3.2rem;border-radius:50%;background:#2a7a2a;color:#fff;border:none;font-size:1.3rem;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;z-index:100;">📥</button>
+<button id="fab-import" onclick="importFile()" title="Import JSON backup">📥</button>
 <button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
 <div id="toast"></div>
 
@@ -972,11 +994,9 @@ function importFile() {
         if (!Array.isArray(imported)) throw new Error('Invalid format');
         data = imported.slice();
         saveData(data);
-        document.getElementById('search').value = '';
-        suggestEl.innerHTML = '';
-        suggestEl.style.display = 'none';
-        document.getElementById('result-card').style.display = 'none';
-        showToast('Imported ' + data.length + ' entries');
+        searchEl.value = '';
+        clearSearch();
+        showToast('Imported ' + data.length + ' entries — ready to search');
       } catch(err) {
         alert('Import failed: ' + err.message);
       }
