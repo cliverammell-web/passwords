@@ -972,7 +972,10 @@ function importFile() {
         if (!Array.isArray(imported)) throw new Error('Invalid format');
         data = imported.slice();
         saveData(data);
-        renderList(data);
+        document.getElementById('search').value = '';
+        suggestEl.innerHTML = '';
+        suggestEl.style.display = 'none';
+        document.getElementById('result-card').style.display = 'none';
         showToast('Imported ' + data.length + ' entries');
       } catch(err) {
         alert('Import failed: ' + err.message);
