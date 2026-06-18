@@ -1010,6 +1010,8 @@ const PIN_SESSION_KEY = 'pw_pin_auth';
 
 if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
   unlockApp();
+} else {
+  setTimeout(() => document.getElementById('pin-input').focus(), 50);
 }
 
 document.getElementById('pin-input').addEventListener('keydown', e => {
