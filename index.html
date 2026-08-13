@@ -1,1049 +1,797 @@
-<html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Passwords</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#1e1d1b">
-<meta name="mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fund Tracker</title>
+<meta name="description" content="Record investments across multiple funds and see your money-weighted annualised return (XIRR) for each fund and your whole portfolio.">
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1B2B5B">
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Passwords">
+<meta name="apple-mobile-web-app-title" content="Fund Tracker">
 <style>
   :root {
-    --bg:        #f2f1ee;
-    --surface:   #ffffff;
-    --surface2:  #e8e6e1;
-    --border:    #d0cdc7;
-    --text:      #1a1917;
-    --muted:     #6b6860;
-    --accent:    #2a5caa;
-    --accent2:   #1a3d72;
-    --reveal:    #b85c00;
-    --reveal2:   #8a4400;
-    --note:      #2a7a4f;
-    --note2:     #1a5235;
-    --add:       #555250;
-    --add2:      #333130;
-    --danger:    #c0392b;
-    --shadow:    0 2px 8px rgba(0,0,0,0.08);
-    --radius:    12px;
+    --navy: #1B2B5B;
+    --navy-light: #2d3f7a;
+    --bg: #f4f5f9;
+    --card-bg: #ffffff;
+    --text: #1c1e2b;
+    --text-muted: #6b7280;
+    --green: #1a7f4e;
+    --red: #b3261e;
+    --border: #e3e5ec;
+    --border-strong: #cdd1de;
   }
-
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg:       #111110;
-      --surface:  #1e1d1b;
-      --surface2: #2a2926;
-      --border:   #3a3835;
-      --text:     #f0ede8;
-      --muted:    #8a8780;
-      --accent:   #5b8dd9;
-      --accent2:  #4070bb;
-      --reveal:   #e07a30;
-      --reveal2:  #c06020;
-      --note:     #4aaa74;
-      --note2:    #2a7a4f;
-      --add:      #888580;
-      --add2:     #666360;
-      --danger:   #e05545;
-      --shadow:   0 2px 10px rgba(0,0,0,0.35);
-    }
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
   body {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    padding: 0 0 80px 0;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
   }
+  h1, h2, h3 { margin: 0; font-weight: 600; }
+  a { color: var(--navy); }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    transition: opacity .15s ease, transform .05s ease;
+  }
+  button:active { transform: scale(0.98); }
+  button.primary { background: var(--navy); color: #fff; }
+  button.primary:hover { background: var(--navy-light); }
+  button.ghost { background: transparent; color: var(--navy); border: 1px solid var(--border-strong); }
+  button.ghost:hover { background: #eef0f7; }
+  button.danger { background: transparent; color: var(--red); border: 1px solid #f0d3d1; }
+  button.danger:hover { background: #fbeceb; }
+  button.small { padding: 5px 10px; font-size: 0.8rem; border-radius: 6px; }
+  input, select {
+    font-family: inherit;
+    font-size: 0.92rem;
+    padding: 8px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--text);
+    width: 100%;
+  }
+  input:focus, select:focus { outline: 2px solid var(--navy-light); outline-offset: -1px; }
+  label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; display: block; margin-bottom: 4px; }
 
   header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 18px 20px 14px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: var(--shadow);
+    background: var(--navy);
+    color: #fff;
+    padding: 18px 20px 0 20px;
   }
-
-  header h1 {
-    font-size: 13px;
-    font-weight: normal;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 12px;
-  }
-
-  .search-wrap {
-    position: relative;
-  }
-
-  #search {
-    width: 100%;
-    padding: 11px 16px 11px 42px;
-    font-size: 16px;
-    font-family: inherit;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    outline: none;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-  }
-
-  #search:focus { border-color: var(--accent); }
-  #search::placeholder { color: var(--muted); }
-
-  .search-icon {
-    position: absolute;
-    left: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--muted);
-    font-size: 16px;
-    pointer-events: none;
-  }
-
-  #clear-btn {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 4px 6px;
-    display: none;
-    line-height: 1;
-  }
-
-  .suggestions {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0; right: 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    z-index: 200;
-    max-height: 220px;
-    overflow-y: auto;
-    display: none;
-  }
-
-  .suggestion-item {
-    padding: 12px 16px;
-    cursor: pointer;
-    font-size: 15px;
-    border-bottom: 1px solid var(--border);
-    transition: background 0.15s;
-  }
-
-  .suggestion-item:last-child { border-bottom: none; }
-  .suggestion-item:active, .suggestion-item:hover { background: var(--surface2); }
-
-  .suggestion-item mark {
-    background: none;
-    color: var(--accent);
-    font-weight: bold;
-  }
-
-  /* Result card */
-  #result-card {
-    margin: 16px 16px 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    display: none;
-  }
-
-  .card-header {
-    padding: 14px 18px 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
+  header .titlebar {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    max-width: 980px;
+    margin: 0 auto;
+    padding-bottom: 14px;
   }
+  header h1 { font-size: 1.25rem; letter-spacing: .01em; }
+  header h1 .sub { display:block; font-size: 0.72rem; font-weight: 400; opacity: 0.75; margin-top: 2px; letter-spacing: .02em; }
 
-  .card-org {
-    font-size: 19px;
-    font-weight: bold;
-    letter-spacing: 0.01em;
-    flex: 1;
-  }
-
-  .card-actions {
+  nav.tabs {
+    max-width: 980px;
+    margin: 0 auto;
     display: flex;
-    gap: 6px;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs .tab {
     flex-shrink: 0;
-  }
-
-  .icon-btn {
-    background: none;
-    border: 1.5px solid var(--border);
-    border-radius: 7px;
-    padding: 5px 10px;
-    font-size: 14px;
+    padding: 9px 14px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.68);
     cursor: pointer;
-    color: var(--muted);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-    line-height: 1.3;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+  }
+  nav.tabs .tab:hover { color: #fff; }
+  nav.tabs .tab.active { color: #fff; border-bottom-color: #fff; }
+  nav.tabs .tab.add { color: rgba(255,255,255,0.55); }
+
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 22px 18px 60px 18px;
   }
 
-  .icon-btn:active { transform: scale(0.93); }
-
-  .icon-btn.edit:hover  { background: var(--accent); color: #fff; border-color: var(--accent); }
-  .icon-btn.delete:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
-
-  /* Confirm dialog overlay */
-  #confirm-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.45);
-    z-index: 500;
-    align-items: center;
-    justify-content: center;
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
   }
-
-  #confirm-overlay.show { display: flex; }
-
-  .confirm-box {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    padding: 24px 22px 18px;
-    max-width: 300px;
-    width: 90%;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-    text-align: center;
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
   }
+  .stat-card .label { font-size: 0.74rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .stat-card .value { font-size: 1.55rem; font-weight: 700; margin-top: 4px; }
+  .stat-card.hero { background: var(--navy); color: #fff; }
+  .stat-card.hero .label { color: rgba(255,255,255,0.75); }
+  .stat-card.hero .value { font-size: 2rem; }
+  .stat-card .sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 3px; }
+  .stat-card.hero .sub { color: rgba(255,255,255,0.7); }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .stat-card.hero .pos { color: #6fe3a5; }
+  .stat-card.hero .neg { color: #ff9b93; }
 
-  .confirm-box p {
-    font-size: 15px;
-    line-height: 1.5;
-    margin-bottom: 20px;
-    color: var(--text);
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
   }
+  .card h2 { font-size: 1rem; margin-bottom: 12px; }
+  .card h3 { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 10px; }
 
-  .confirm-box strong { color: var(--danger); }
-
-  .confirm-btns {
-    display: flex;
-    gap: 10px;
-  }
-
-  .confirm-btns button {
-    flex: 1;
-    padding: 11px;
-    border: none;
-    border-radius: 9px;
-    font-size: 14px;
-    font-family: inherit;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-cancel-confirm { background: var(--surface2); color: var(--text); }
-  .btn-cancel-confirm:hover { background: var(--border); }
-  .btn-delete-confirm { background: var(--danger); color: #fff; }
-  .btn-delete-confirm:hover { filter: brightness(0.88); }
-
-  .card-body {
-    padding: 14px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .info-row {
-    display: none;
-    background: var(--surface2);
-    border-radius: 8px;
-    padding: 11px 14px;
-    font-size: 15px;
-    word-break: break-all;
-    line-height: 1.5;
-  }
-
-  .info-row.visible { display: block; }
-
-  .info-label {
-    font-size: 10px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 4px;
-  }
-
-  .info-value {
-    font-size: 16px;
-    font-family: 'Courier New', monospace;
-  }
-
-  .btn-row {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 0 18px 16px;
-  }
-
-  .action-btn {
-    flex: 1;
-    min-width: 0;
-    padding: 11px 8px;
-    border: none;
-    border-radius: 9px;
-    font-size: 13px;
-    font-family: inherit;
-    letter-spacing: 0.06em;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
-    color: #fff;
-    text-align: center;
-  }
-
-  .action-btn:active { transform: scale(0.96); }
-
-  .btn-password { background: var(--reveal); }
-  .btn-password:hover { background: var(--reveal2); }
-  .btn-password.active { background: var(--reveal2); }
-
-  .btn-email { background: var(--accent); }
-  .btn-email:hover { background: var(--accent2); }
-  .btn-email.active { background: var(--accent2); }
-
-  .btn-notes { background: var(--note); }
-  .btn-notes:hover { background: var(--note2); }
-  .btn-notes.active { background: var(--note2); }
-
-  /* No match / Add new */
-  #no-match {
-    margin: 16px 16px 0;
-    display: none;
-    text-align: center;
-  }
-
-  #no-match p {
-    color: var(--muted);
-    font-size: 14px;
-    margin-bottom: 14px;
-  }
-
-  #no-match strong { color: var(--text); }
-
-  /* Add form */
-  #add-form {
-    margin: 16px 16px 0;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    overflow: hidden;
-    display: none;
-  }
-
-  .form-header {
-    padding: 14px 18px 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface2);
+  .fund-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-  }
-
-  .form-title {
-    font-size: 15px;
-    font-weight: bold;
-    letter-spacing: 0.04em;
-  }
-
-  .form-close {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 22px;
+    padding: 13px 4px;
+    border-bottom: 1px solid var(--border);
     cursor: pointer;
-    line-height: 1;
-    padding: 0 4px;
   }
+  .fund-row:last-child { border-bottom: none; }
+  .fund-row:hover { background: #fafbfd; }
+  .fund-row .fname { font-weight: 600; }
+  .fund-row .fprovider { font-size: 0.78rem; color: var(--text-muted); }
+  .fund-row .fstats { text-align: right; }
+  .fund-row .fstats .rate { font-weight: 700; font-size: 1.02rem; }
+  .fund-row .fstats .val { font-size: 0.78rem; color: var(--text-muted); }
 
-  .form-body {
-    padding: 16px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  table th { text-align: left; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .03em; padding: 6px 8px; border-bottom: 1px solid var(--border-strong); }
+  table td { padding: 9px 8px; border-bottom: 1px solid var(--border); }
+  table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table tr:last-child td { border-bottom: none; }
 
-  .form-field label {
-    display: block;
-    font-size: 11px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 5px;
-  }
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; }
+  .form-row .field { flex: 1; min-width: 120px; }
+  .form-row .field.grow2 { flex: 2; }
 
-  .form-field input, .form-field textarea {
-    width: 100%;
-    padding: 10px 14px;
-    font-size: 15px;
-    font-family: inherit;
-    background: var(--surface2);
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    outline: none;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-  }
+  .fund-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .fund-header .titles h2 { font-size: 1.3rem; }
+  .fund-header .titles .provider { color: var(--text-muted); font-size: 0.88rem; margin-top: 2px; }
+  .fund-actions { display: flex; gap: 8px; }
 
-  .form-field textarea {
-    resize: vertical;
-    min-height: 70px;
-  }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+  .empty-state button { margin-top: 12px; }
 
-  .form-field input:focus,
-  .form-field textarea:focus { border-color: var(--accent); }
+  .err { color: var(--red); font-size: 0.8rem; margin-top: 6px; display:none; }
+  .footer-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+  .muted-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
 
-  .form-actions {
-    display: flex;
-    gap: 8px;
-    padding: 0 18px 18px;
-  }
+  .as-of { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
 
-  .btn-save {
-    flex: 1;
-    padding: 13px;
-    background: var(--add);
-    color: #fff;
-    border: none;
-    border-radius: 9px;
-    font-size: 14px;
-    font-family: inherit;
-    letter-spacing: 0.06em;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .btn-save:hover { background: var(--add2); }
-  .btn-save:active { transform: scale(0.97); }
-
-  /* Floating buttons */
-  #fab {
-    position: fixed;
-    bottom: 22px;
-    right: 20px;
-    z-index: 300;
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    background: var(--add);
-    color: #fff;
-    border: none;
-    font-size: 26px;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, transform 0.15s;
-  }
-
-  #fab:active { transform: scale(0.92); background: var(--add2); }
-
-  #fab-export {
-    position: fixed;
-    bottom: 22px;
-    left: 20px;
-    z-index: 300;
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    background: var(--accent);
-    color: #fff;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.15s, transform 0.15s;
-  }
-
-  #fab-export:active { transform: scale(0.92); background: var(--accent2); }
-  #fab-import {
-    position: fixed;
-    bottom: 22px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 300;
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    background: #2a7a2a;
-    color: #fff;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #fab-import:active { opacity: 0.8; }
-
-
-  /* Toast */
-  #toast {
-    position: fixed;
-    bottom: 90px;
-    left: 50%;
-    transform: translateX(-50%) translateY(20px);
-    background: var(--text);
-    color: var(--bg);
-    padding: 9px 20px;
-    border-radius: 20px;
-    font-size: 13px;
-    opacity: 0;
-    transition: opacity 0.25s, transform 0.25s;
-    pointer-events: none;
-    white-space: nowrap;
-    z-index: 999;
-  }
-
-  #toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-
-  .empty-state {
-    padding: 40px 20px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.8;
-  }
-
-  /* PIN lock screen */
-  #pin-screen {
+  .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: var(--bg);
+    background: rgba(15, 20, 40, 0.5);
     display: flex;
-    flex-direction: column;
     align-items: center;
     justify-content: center;
-    z-index: 999;
-    padding: 40px 24px;
+    z-index: 1000;
+    padding: 20px;
   }
-
-  #pin-screen h2 {
-    font-size: 13px;
-    font-weight: normal;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 8px;
+  .modal {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 24px 24px 24px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
   }
-
-  #pin-screen .pin-icon {
-    font-size: 40px;
-    margin-bottom: 20px;
-  }
-
-  .pin-form {
+  .modal-header {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    width: 100%;
-    max-width: 260px;
+    margin-bottom: 18px;
   }
-
-  .pin-form input {
-    width: 100%;
-    padding: 13px 18px;
-    font-size: 22px;
-    font-family: 'Courier New', monospace;
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    color: var(--text);
-    outline: none;
-    text-align: center;
-    letter-spacing: 0.3em;
-    transition: border-color 0.2s;
-    -webkit-appearance: none;
-  }
-
-  .pin-form input:focus { border-color: var(--accent); }
-
-  .pin-form button {
-    width: 100%;
-    padding: 13px;
-    background: var(--accent);
-    color: #fff;
+  .modal-header h2 { font-size: 1.05rem; }
+  .modal-close {
+    background: transparent;
     border: none;
-    border-radius: 9px;
-    font-size: 13px;
-    font-family: inherit;
-    letter-spacing: 0.08em;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--text-muted);
+    padding: 2px 6px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-section { margin-bottom: 22px; }
+  .modal-section:last-child { margin-bottom: 0; }
+  .modal-section h3 {
+    font-size: 0.78rem;
+    color: var(--text-muted);
     text-transform: uppercase;
-    cursor: pointer;
-    transition: opacity 0.15s;
+    letter-spacing: .03em;
+    margin-bottom: 10px;
   }
+  .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  .pin-form button:active { opacity: 0.8; }
-
-  .pin-error {
-    font-size: 12px;
-    color: #c0392b;
-    min-height: 18px;
-    text-align: center;
+  @media (max-width: 560px) {
+    .stat-card.hero .value { font-size: 1.6rem; }
+    .fund-row .fstats .val { display: none; }
   }
-
-  #app-content { display: none; }
 </style>
 </head>
 <body>
 
-<div id="pin-screen" style="display: flex;">
-  <div class="pin-icon">🔑</div>
-  <h2>Passwords</h2>
-  <div class="pin-form">
-    <input type="password" id="pin-input" placeholder="• • • •" autocomplete="off">
-    <div class="pin-error" id="pin-error"></div>
-    <button onclick="checkPin()">Unlock</button>
-  </div>
-</div>
-
-<div id="app-content" style="display: none;">
-
 <header>
-  <h1>🔑 Passwords</h1>
-  <div class="search-wrap">
-    <span class="search-icon">⌕</span>
-    <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
-    <button id="clear-btn" onclick="clearSearch()" style="display: block;">✕</button>
-    <div class="suggestions" id="suggestions" style="display: none;"></div>
+  <div class="titlebar">
+    <h1>Fund Tracker<span class="sub">Investment record &amp; annualised return</span></h1>
+    <button class="ghost" style="color:#fff;border-color:rgba(255,255,255,0.4)" onclick="app.openSettings()">⚙</button>
   </div>
+  <nav class="tabs" id="tabs"></nav>
 </header>
 
-<div id="result-card" style="display: none;">
-  <div class="card-header">
-    <div class="card-org" id="card-org"></div>
-    <div class="card-actions">
-      <button class="icon-btn edit" onclick="editCurrentEntry()" title="Edit">✎ Edit</button>
-      <button class="icon-btn delete" onclick="confirmDelete()" title="Delete">🗑</button>
-    </div>
-  </div>
-  <div class="card-body">
-    <div class="info-row" id="row-password">
-      <div class="info-label">Password</div>
-      <div class="info-value" id="val-password"></div>
-    </div>
-    <div class="info-row" id="row-email">
-      <div class="info-label">Email Address</div>
-      <div class="info-value" id="val-email"></div>
-    </div>
-    <div class="info-row" id="row-notes">
-      <div class="info-label">Notes</div>
-      <div class="info-value" id="val-notes"></div>
-    </div>
-  </div>
-  <div class="btn-row">
-    <button class="action-btn btn-password active" onclick="toggleField('password')">👁 Password</button>
-    <button class="action-btn btn-email active" onclick="toggleField('email')">✉ Email</button>
-    <button class="action-btn btn-notes active" onclick="toggleField('notes')">📋 Notes</button>
-  </div>
-</div>
-
-<div id="no-match" style="display: none;">
-  <p>No entry found for <strong id="no-match-term"></strong></p>
-  <button class="btn-save" style="max-width:200px;margin:0 auto;display:block;" onclick="showAddForm(true)">+ Add New Entry</button>
-</div>
-
-<div id="add-form" style="display: none;">
-  <div class="form-header">
-    <div class="form-title" id="form-title">New Entry</div>
-    <button class="form-close" onclick="hideAddForm()">✕</button>
-  </div>
-  <div class="form-body">
-    <div class="form-field">
-      <label>Organisation / Website</label>
-      <input type="text" id="f-org" placeholder="e.g. Amazon" autocorrect="off">
-    </div>
-    <div class="form-field">
-      <label>Email Address</label>
-      <input type="email" id="f-email" placeholder="your@email.com">
-    </div>
-    <div class="form-field">
-      <label>Password</label>
-      <input type="text" id="f-password" placeholder="password or code" autocorrect="off" autocomplete="off">
-    </div>
-    <div class="form-field">
-      <label>Notes</label>
-      <textarea id="f-notes" placeholder="Any additional info…"></textarea>
-    </div>
-  </div>
-  <div class="form-actions">
-    <button class="btn-save" onclick="saveEntry()">Save Entry</button>
-  </div>
-</div>
-
-<div class="empty-state" id="empty-state" style="display: none;">
-  Start typing a company or website name above
-</div>
-
-<div id="confirm-overlay">
-  <div class="confirm-box">
-    <p>Delete <strong id="confirm-org-name"></strong>?<br>This cannot be undone.</p>
-    <div class="confirm-btns">
-      <button class="btn-cancel-confirm" onclick="hideConfirm()">Cancel</button>
-      <button class="btn-delete-confirm" onclick="deleteCurrentEntry()">Delete</button>
-    </div>
-  </div>
-</div>
-
-<button id="fab-export" onclick="exportFile()" title="Export data as JSON">💾</button>
-<button id="fab-import" onclick="importFile()" title="Import JSON backup">📥</button>
-<button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
-<div id="toast"></div>
+<main id="app"></main>
+<div id="modalRoot"></div>
 
 <script>
-// ── DATA ──────────────────────────────────────────────────────────────────────
-// Paste your full dataset here. Each entry: { org, email, password, notes }
-// Entries are kept in localStorage so new additions persist across sessions.
+(function () {
+  "use strict";
 
-const SEED_DATA = [];
+  const STORAGE_KEY = "fundTrackerData";
 
-// ── STORAGE ───────────────────────────────────────────────────────────────────
-const STORE_KEY = 'pw_entries_20260611';
-
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  // First run: seed and save
-  saveData(SEED_DATA);
-  return SEED_DATA.slice();
-}
-
-function saveData(entries) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); } catch(e) {}
-}
-
-let data = loadData();
-let currentEntry = null;
-
-// ── SEARCH ────────────────────────────────────────────────────────────────────
-const searchEl   = document.getElementById('search');
-const suggestEl  = document.getElementById('suggestions');
-const clearBtn   = document.getElementById('clear-btn');
-const resultCard = document.getElementById('result-card');
-const noMatch    = document.getElementById('no-match');
-const addForm    = document.getElementById('add-form');
-const emptyState = document.getElementById('empty-state');
-
-searchEl.addEventListener('input', onSearchInput);
-searchEl.addEventListener('keydown', e => { if (e.key === 'Escape') clearSearch(); });
-
-document.addEventListener('click', e => {
-  if (!e.target.closest('.search-wrap')) hideSuggestions();
-});
-
-function onSearchInput() {
-  const q = searchEl.value.trim();
-  clearBtn.style.display = q ? 'block' : 'none';
-  hideResult();
-  hideAddForm();
-
-  if (!q) {
-    hideSuggestions();
-    emptyState.style.display = 'block';
-    return;
+  // ---------- Data layer ----------
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return { funds: [], currency: "£" };
+      const parsed = JSON.parse(raw);
+      if (!parsed.currency) parsed.currency = "£";
+      if (!parsed.funds) parsed.funds = [];
+      return parsed;
+    } catch (e) {
+      console.error("Failed to load data", e);
+      return { funds: [], currency: "£" };
+    }
   }
 
-  emptyState.style.display = 'none';
-  const matches = data.filter(d => d.org.toLowerCase().startsWith(q.toLowerCase()));
-
-  if (matches.length === 0) {
-    hideSuggestions();
-    showNoMatch(q);
-    return;
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
   }
 
-  noMatch.style.display = 'none';
-  renderSuggestions(matches, q);
-}
-
-function renderSuggestions(matches, q) {
-  suggestEl.innerHTML = '';
-  matches.forEach(entry => {
-    const div = document.createElement('div');
-    div.className = 'suggestion-item';
-    const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
-    div.innerHTML = entry.org.replace(re, '<mark>$1</mark>');
-    div.addEventListener('click', () => selectEntry(entry));
-    suggestEl.appendChild(div);
-  });
-  suggestEl.style.display = 'block';
-}
-
-function hideSuggestions() {
-  suggestEl.style.display = 'none';
-}
-
-function selectEntry(entry) {
-  currentEntry = entry;
-  searchEl.value = entry.org;
-  clearBtn.style.display = 'block';
-  hideSuggestions();
-  noMatch.style.display = 'none';
-  emptyState.style.display = 'none';
-  showCard(entry);
-}
-
-function clearSearch() {
-  searchEl.value = '';
-  clearBtn.style.display = 'none';
-  hideSuggestions();
-  hideResult();
-  hideAddForm();
-  noMatch.style.display = 'none';
-  emptyState.style.display = 'block';
-  currentEntry = null;
-  searchEl.focus();
-}
-
-// ── CARD ──────────────────────────────────────────────────────────────────────
-function showCard(entry) {
-  document.getElementById('card-org').textContent = entry.org;
-  document.getElementById('val-password').textContent = entry.password || '(none set)';
-  document.getElementById('val-email').textContent = entry.email || '(none set)';
-  document.getElementById('val-notes').textContent = entry.notes || '(none)';
-
-  // Reset all rows hidden
-  ['password','email','notes'].forEach(f => {
-    document.getElementById('row-' + f).classList.remove('visible');
-    document.querySelector('.btn-' + f).classList.remove('active');
-  });
-
-  resultCard.style.display = 'block';
-}
-
-function hideResult() {
-  resultCard.style.display = 'none';
-}
-
-function toggleField(field) {
-  const row = document.getElementById('row-' + field);
-  const btn = document.querySelector('.btn-' + field);
-  const isVisible = row.classList.contains('visible');
-  row.classList.toggle('visible', !isVisible);
-  btn.classList.toggle('active', !isVisible);
-}
-
-// ── NO MATCH ──────────────────────────────────────────────────────────────────
-function showNoMatch(q) {
-  document.getElementById('no-match-term').textContent = '"' + q + '"';
-  noMatch.style.display = 'block';
-}
-
-// ── ADD / EDIT FORM ───────────────────────────────────────────────────────────
-let editMode = false; // true when editing an existing entry
-
-function showAddForm(prefill) {
-  editMode = false;
-  document.getElementById('form-title').textContent = 'New Entry';
-  addForm.style.display = 'block';
-  hideResult();
-  noMatch.style.display = 'none';
-  emptyState.style.display = 'none';
-
-  document.getElementById('f-org').value = prefill ? searchEl.value.trim() : '';
-  document.getElementById('f-email').value = '';
-  document.getElementById('f-password').value = '';
-  document.getElementById('f-notes').value = '';
-
-  setTimeout(() => document.getElementById('f-org').focus(), 100);
-}
-
-function editCurrentEntry() {
-  if (!currentEntry) return;
-  editMode = true;
-  document.getElementById('form-title').textContent = 'Edit Entry';
-  addForm.style.display = 'block';
-  hideResult();
-  emptyState.style.display = 'none';
-
-  document.getElementById('f-org').value = currentEntry.org;
-  document.getElementById('f-email').value = currentEntry.email || '';
-  document.getElementById('f-password').value = currentEntry.password || '';
-  document.getElementById('f-notes').value = currentEntry.notes || '';
-
-  setTimeout(() => document.getElementById('f-password').focus(), 100);
-}
-
-function hideAddForm() {
-  addForm.style.display = 'none';
-  editMode = false;
-}
-
-function saveEntry() {
-  const org = document.getElementById('f-org').value.trim();
-  if (!org) { showToast('Please enter an organisation name'); return; }
-
-  const entry = {
-    org,
-    email:    document.getElementById('f-email').value.trim(),
-    password: document.getElementById('f-password').value.trim(),
-    notes:    document.getElementById('f-notes').value.trim()
-  };
-
-  const idx = data.findIndex(d => d.org.toLowerCase() === org.toLowerCase());
-  if (idx >= 0) {
-    data[idx] = entry;
-    showToast('Updated: ' + org);
-  } else {
-    const insertAt = data.findIndex(d => d.org.toLowerCase() > org.toLowerCase());
-    if (insertAt === -1) data.push(entry);
-    else data.splice(insertAt, 0, entry);
-    showToast('Saved: ' + org);
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
   }
 
-  saveData(data);
-  hideAddForm();
-  searchEl.value = org;
-  clearBtn.style.display = 'block';
-  currentEntry = entry;
-  showCard(entry);
-}
+  function todayStr() {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }
 
-// ── DELETE ────────────────────────────────────────────────────────────────────
-function confirmDelete() {
-  if (!currentEntry) return;
-  document.getElementById('confirm-org-name').textContent = currentEntry.org;
-  document.getElementById('confirm-overlay').classList.add('show');
-}
+  // ---------- XIRR (money-weighted annualised return) ----------
+  function daysBetween(d1, d2) {
+    return (new Date(d2) - new Date(d1)) / 86400000;
+  }
 
-function hideConfirm() {
-  document.getElementById('confirm-overlay').classList.remove('show');
-}
+  function xnpv(rate, cashflows) {
+    const d0 = cashflows[0].date;
+    return cashflows.reduce((sum, cf) => {
+      const t = daysBetween(d0, cf.date) / 365;
+      return sum + cf.amount / Math.pow(1 + rate, t);
+    }, 0);
+  }
 
-function deleteCurrentEntry() {
-  if (!currentEntry) return;
-  const org = currentEntry.org;
-  data = data.filter(d => d.org !== currentEntry.org);
-  saveData(data);
-  hideConfirm();
-  clearSearch();
-  showToast('Deleted: ' + org);
-}
+  function xirr(cashflowsIn) {
+    const cashflows = [...cashflowsIn].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const hasPos = cashflows.some((cf) => cf.amount > 0);
+    const hasNeg = cashflows.some((cf) => cf.amount < 0);
+    if (!hasPos || !hasNeg) return null;
 
-// ── TOAST ─────────────────────────────────────────────────────────────────────
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2200);
-}
+    let low = -0.9999, high = 10;
+    let fLow = xnpv(low, cashflows);
+    let fHigh = xnpv(high, cashflows);
 
-// ── EXPORT ────────────────────────────────────────────────────────────────────
-// Reads the current HTML file, splices in the live data, and downloads it.
-// The exported file is a complete standalone copy with all edits baked in.
-function exportFile() {
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'passwords-backup-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Exported — save to Google Drive');
-}
+    let guard = 0;
+    while (fLow * fHigh > 0 && guard < 60) {
+      high *= 2;
+      fHigh = xnpv(high, cashflows);
+      guard++;
+      if (high > 1e7) break;
+    }
+    if (fLow * fHigh > 0) return null;
 
-function importFile() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  input.onchange = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const imported = JSON.parse(ev.target.result);
-        if (!Array.isArray(imported)) throw new Error('Invalid format');
-        data = imported.slice();
-        saveData(data);
-        searchEl.value = '';
-        clearSearch();
-        showToast('Imported ' + data.length + ' entries — search to find them');
-      } catch(err) {
-        alert('Import failed: ' + err.message);
+    for (let i = 0; i < 200; i++) {
+      const mid = (low + high) / 2;
+      const fMid = xnpv(mid, cashflows);
+      if (Math.abs(fMid) < 1e-7) return mid;
+      if ((fLow < 0 && fMid < 0) || (fLow > 0 && fMid > 0)) {
+        low = mid; fLow = fMid;
+      } else {
+        high = mid; fHigh = fMid;
       }
-    };
-    reader.readAsText(file);
-  };
-  input.click();
-}
-// ── PIN AUTH ──────────────────────────────────────────────────────────────────
-const PIN_HASH = '06aed7e09c148e73bb324fc552c7f0e29d3772bcadf0ddcf9769ee3f3890b42a';
-const PIN_SESSION_KEY = 'pw_pin_auth';
-
-if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
-  unlockApp();
-} else {
-  setTimeout(() => document.getElementById('pin-input').focus(), 50);
-}
-
-document.getElementById('pin-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') checkPin();
-  document.getElementById('pin-error').textContent = '';
-});
-
-async function checkPin() {
-  const val = document.getElementById('pin-input').value;
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
-  const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  if (hash === PIN_HASH) {
-    sessionStorage.setItem(PIN_SESSION_KEY, 'true');
-    unlockApp();
-  } else {
-    document.getElementById('pin-error').textContent = 'Incorrect PIN';
-    document.getElementById('pin-input').value = '';
-    document.getElementById('pin-input').focus();
+    }
+    return (low + high) / 2;
   }
-}
 
-function unlockApp() {
-  document.getElementById('pin-screen').style.display = 'none';
-  document.getElementById('app-content').style.display = 'block';
-}
+  function fundStats(fund) {
+    const totalInvested = fund.investments.reduce((s, i) => s + i.amount, 0);
+    const currentValue = typeof fund.currentValue === "number" ? fund.currentValue : null;
+    const gain = currentValue !== null ? currentValue - totalInvested : null;
+    const gainPct = currentValue !== null && totalInvested > 0 ? (gain / totalInvested) * 100 : null;
+    let rate = null;
+    if (currentValue !== null && fund.investments.length > 0) {
+      const cfs = fund.investments.map((i) => ({ date: i.date, amount: -i.amount }));
+      cfs.push({ date: fund.valuationDate || todayStr(), amount: currentValue });
+      const r = xirr(cfs);
+      if (r !== null) rate = r * 100;
+    }
+    return { totalInvested, currentValue, gain, gainPct, rate };
+  }
 
-// ── SERVICE WORKER ────────────────────────────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
-}
+  function portfolioStats(data) {
+    let totalInvested = 0, totalValue = 0;
+    const cfs = [];
+    let anyValue = false;
+    data.funds.forEach((fund) => {
+      fund.investments.forEach((i) => {
+        totalInvested += i.amount;
+        cfs.push({ date: i.date, amount: -i.amount });
+      });
+      if (typeof fund.currentValue === "number") {
+        totalValue += fund.currentValue;
+        anyValue = true;
+        cfs.push({ date: fund.valuationDate || todayStr(), amount: fund.currentValue });
+      }
+    });
+    const gain = anyValue ? totalValue - totalInvested : null;
+    const gainPct = anyValue && totalInvested > 0 ? (gain / totalInvested) * 100 : null;
+    let rate = null;
+    if (cfs.length > 0) {
+      const r = xirr(cfs);
+      if (r !== null) rate = r * 100;
+    }
+    return { totalInvested, totalValue, gain, gainPct, rate, anyValue };
+  }
+
+  // ---------- Formatting ----------
+  function fmtMoney(n) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return state.data.currency + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function fmtPct(n) {
+    if (n === null || n === undefined || isNaN(n)) return "—";
+    return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
+  }
+  function fmtDate(d) {
+    if (!d) return "—";
+    const dt = new Date(d + "T00:00:00");
+    return dt.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  }
+  function pctClass(n) {
+    if (n === null || n === undefined || isNaN(n)) return "";
+    return n >= 0 ? "pos" : "neg";
+  }
+
+  // ---------- State ----------
+  const state = {
+    data: loadData(),
+    view: "overview", // "overview" | fund id
+    showSettings: false,
+  };
+
+  function findFund(id) {
+    return state.data.funds.find((f) => f.id === id);
+  }
+
+  // ---------- Rendering ----------
+  const appEl = document.getElementById("app");
+  const tabsEl = document.getElementById("tabs");
+  const modalRoot = document.getElementById("modalRoot");
+
+  function render() {
+    renderTabs();
+    if (state.view === "overview") renderOverview();
+    else renderFund(state.view);
+    renderSettingsModal();
+  }
+
+  function renderSettingsModal() {
+    if (!state.showSettings) { modalRoot.innerHTML = ""; return; }
+    modalRoot.innerHTML = `
+      <div class="modal-backdrop" onclick="if(event.target===this) app.closeSettings()">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>Settings</h2>
+            <button class="modal-close" onclick="app.closeSettings()">&times;</button>
+          </div>
+
+          <div class="modal-section">
+            <h3>Currency</h3>
+            <div class="form-row">
+              <div class="field">
+                <input type="text" id="settingsCurrency" value="${escapeHtml(state.data.currency || "£")}" maxlength="3">
+              </div>
+              <div class="field" style="flex:0;">
+                <button class="primary" onclick="app.saveCurrency()">Save</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-section">
+            <h3>Backup &amp; restore</h3>
+            <p class="muted-note" style="margin-top:0;margin-bottom:12px;">Your data lives only in this browser. Export a backup regularly, and use Import to bring data across when you move to a new browser, device, or hosted copy of this app.</p>
+            <div class="modal-actions">
+              <button class="ghost" onclick="app.exportData()">Export backup (JSON)</button>
+              <button class="ghost" onclick="document.getElementById('importFile').click()">Import backup</button>
+            </div>
+            <input type="file" id="importFile" accept="application/json" style="display:none" onchange="app.importData(event)">
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTabs() {
+    let html = `<div class="tab ${state.view === "overview" ? "active" : ""}" onclick="app.goto('overview')">Overview</div>`;
+    state.data.funds.forEach((f) => {
+      html += `<div class="tab ${state.view === f.id ? "active" : ""}" onclick="app.goto('${f.id}')">${escapeHtml(f.name)}</div>`;
+    });
+    html += `<div class="tab add" onclick="app.addFund()">+ Add fund</div>`;
+    tabsEl.innerHTML = html;
+  }
+
+  function renderOverview() {
+    const data = state.data;
+    if (data.funds.length === 0) {
+      appEl.innerHTML = `
+        <div class="card empty-state">
+          <h2>No funds yet</h2>
+          <p class="muted-note">Add your first fund to start recording investments.</p>
+          <button class="primary" onclick="app.addFund()">+ Add your first fund</button>
+        </div>`;
+      return;
+    }
+
+    const p = portfolioStats(data);
+
+    let html = `<div class="stat-grid">
+      <div class="stat-card hero">
+        <div class="label">Grand total annualised return (XIRR)</div>
+        <div class="value ${pctClass(p.rate)}">${fmtPct(p.rate)}</div>
+        <div class="sub">Money-weighted, across all funds &amp; dates</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total invested</div>
+        <div class="value">${fmtMoney(p.totalInvested)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Current value</div>
+        <div class="value">${p.anyValue ? fmtMoney(p.totalValue) : "—"}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Total gain</div>
+        <div class="value ${pctClass(p.gain)}">${p.anyValue ? fmtMoney(p.gain) : "—"}</div>
+        <div class="sub ${pctClass(p.gainPct)}">${fmtPct(p.gainPct)}</div>
+      </div>
+    </div>`;
+
+    html += `<div class="card"><h2>Your funds</h2>`;
+    data.funds.forEach((f) => {
+      const s = fundStats(f);
+      html += `<div class="fund-row" onclick="app.goto('${f.id}')">
+        <div>
+          <div class="fname">${escapeHtml(f.name)}</div>
+          <div class="fprovider">${escapeHtml(f.provider || "")}</div>
+        </div>
+        <div class="fstats">
+          <div class="rate ${pctClass(s.rate)}">${fmtPct(s.rate)}</div>
+          <div class="val">${fmtMoney(s.currentValue)} · invested ${fmtMoney(s.totalInvested)}</div>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    appEl.innerHTML = html;
+  }
+
+  function renderFund(id) {
+    const fund = findFund(id);
+    if (!fund) { state.view = "overview"; renderOverview(); return; }
+    const s = fundStats(fund);
+    const sortedInv = [...fund.investments].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let html = `
+      <div class="fund-header">
+        <div class="titles">
+          <h2>${escapeHtml(fund.name)}</h2>
+          <div class="provider">${escapeHtml(fund.provider || "No provider set")}</div>
+        </div>
+        <div class="fund-actions">
+          <button class="ghost small" onclick="app.editFund('${fund.id}')">Edit details</button>
+          <button class="danger small" onclick="app.deleteFund('${fund.id}')">Delete fund</button>
+        </div>
+      </div>
+      ${fund.notes ? `<div class="muted-note" style="margin-bottom:16px;">${escapeHtml(fund.notes)}</div>` : ""}
+
+      <div class="stat-grid">
+        <div class="stat-card hero">
+          <div class="label">Annualised return (XIRR)</div>
+          <div class="value ${pctClass(s.rate)}">${fmtPct(s.rate)}</div>
+          <div class="sub">As of ${fmtDate(fund.valuationDate)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Total invested</div>
+          <div class="value">${fmtMoney(s.totalInvested)}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Current value</div>
+          <div class="value">${s.currentValue !== null ? fmtMoney(s.currentValue) : "—"}</div>
+        </div>
+        <div class="stat-card">
+          <div class="label">Gain</div>
+          <div class="value ${pctClass(s.gain)}">${s.gain !== null ? fmtMoney(s.gain) : "—"}</div>
+          <div class="sub ${pctClass(s.gainPct)}">${fmtPct(s.gainPct)}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Update current value</h2>
+        <p class="muted-note">Enter the fund's value whenever you check it — you don't need to update this every day. The annualised rate is recalculated using this value and its date.</p>
+        <div class="form-row">
+          <div class="field">
+            <label>Current value</label>
+            <input type="number" step="0.01" id="cvAmount" value="${fund.currentValue ?? ""}" placeholder="e.g. 5230.00">
+          </div>
+          <div class="field">
+            <label>As of date</label>
+            <input type="date" id="cvDate" value="${fund.valuationDate || todayStr()}">
+          </div>
+          <div class="field" style="flex:0;">
+            <button class="primary" onclick="app.updateCurrentValue('${fund.id}')">Save</button>
+          </div>
+        </div>
+        <div class="err" id="cvErr"></div>
+      </div>
+
+      <div class="card">
+        <h2>Investments</h2>
+        ${sortedInv.length === 0 ? `<p class="muted-note">No investments recorded yet — add the first top-up below.</p>` : `
+        <table>
+          <thead><tr><th>Date</th><th>Note</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+          <tbody>
+            ${sortedInv.map((i) => `
+              <tr>
+                <td>${fmtDate(i.date)}</td>
+                <td>${escapeHtml(i.note || "")}</td>
+                <td class="num">${fmtMoney(i.amount)}</td>
+                <td style="text-align:right"><button class="danger small" onclick="app.deleteInvestment('${fund.id}','${i.id}')">Delete</button></td>
+              </tr>`).join("")}
+          </tbody>
+        </table>`}
+
+        <h3 style="margin-top:18px;">Add an investment</h3>
+        <div class="form-row">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="invDate" value="${todayStr()}">
+          </div>
+          <div class="field">
+            <label>Amount</label>
+            <input type="number" step="0.01" id="invAmount" placeholder="e.g. 1000.00">
+          </div>
+          <div class="field grow2">
+            <label>Note (optional)</label>
+            <input type="text" id="invNote" placeholder="e.g. monthly top-up">
+          </div>
+          <div class="field" style="flex:0;">
+            <button class="primary" onclick="app.addInvestment('${fund.id}')">Add</button>
+          </div>
+        </div>
+        <div class="err" id="invErr"></div>
+      </div>
+    `;
+    appEl.innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement("div");
+    d.textContent = str == null ? "" : String(str);
+    return d.innerHTML;
+  }
+
+  // ---------- Actions ----------
+  const app = {
+    goto(id) {
+      state.view = id;
+      render();
+    },
+
+    addFund() {
+      const name = prompt("Fund name (e.g. \"Fidelity Global Index\"):");
+      if (!name || !name.trim()) return;
+      const provider = prompt("Provider / platform (e.g. \"Hargreaves Lansdown\") — optional:") || "";
+      const fund = {
+        id: uid(),
+        name: name.trim(),
+        provider: provider.trim(),
+        notes: "",
+        investments: [],
+        currentValue: null,
+        valuationDate: todayStr(),
+      };
+      state.data.funds.push(fund);
+      saveData();
+      state.view = fund.id;
+      render();
+    },
+
+    editFund(id) {
+      const fund = findFund(id);
+      if (!fund) return;
+      const name = prompt("Fund name:", fund.name);
+      if (name === null || !name.trim()) return;
+      const provider = prompt("Provider / platform:", fund.provider || "");
+      const notes = prompt("Notes (optional):", fund.notes || "");
+      fund.name = name.trim();
+      fund.provider = (provider || "").trim();
+      fund.notes = (notes || "").trim();
+      saveData();
+      render();
+    },
+
+    deleteFund(id) {
+      const fund = findFund(id);
+      if (!fund) return;
+      if (!confirm(`Delete "${fund.name}" and all its investment records? This cannot be undone.`)) return;
+      state.data.funds = state.data.funds.filter((f) => f.id !== id);
+      saveData();
+      state.view = "overview";
+      render();
+    },
+
+    addInvestment(fundId) {
+      const fund = findFund(fundId);
+      if (!fund) return;
+      const dateEl = document.getElementById("invDate");
+      const amountEl = document.getElementById("invAmount");
+      const noteEl = document.getElementById("invNote");
+      const errEl = document.getElementById("invErr");
+      const date = dateEl.value;
+      const amount = parseFloat(amountEl.value);
+
+      if (!date) { showErr(errEl, "Please enter a date."); return; }
+      if (isNaN(amount) || amount <= 0) { showErr(errEl, "Please enter an amount greater than 0."); return; }
+
+      fund.investments.push({ id: uid(), date, amount, note: noteEl.value.trim() });
+      saveData();
+      render();
+    },
+
+    deleteInvestment(fundId, invId) {
+      const fund = findFund(fundId);
+      if (!fund) return;
+      if (!confirm("Delete this investment record?")) return;
+      fund.investments = fund.investments.filter((i) => i.id !== invId);
+      saveData();
+      render();
+    },
+
+    updateCurrentValue(fundId) {
+      const fund = findFund(fundId);
+      if (!fund) return;
+      const amountEl = document.getElementById("cvAmount");
+      const dateEl = document.getElementById("cvDate");
+      const errEl = document.getElementById("cvErr");
+      const amount = parseFloat(amountEl.value);
+      const date = dateEl.value;
+
+      if (isNaN(amount) || amount < 0) { showErr(errEl, "Please enter a valid current value."); return; }
+      if (!date) { showErr(errEl, "Please enter the date this value applies to."); return; }
+
+      fund.currentValue = amount;
+      fund.valuationDate = date;
+      saveData();
+      render();
+    },
+
+    openSettings() {
+      state.showSettings = true;
+      render();
+    },
+
+    closeSettings() {
+      state.showSettings = false;
+      render();
+    },
+
+    saveCurrency() {
+      const el = document.getElementById("settingsCurrency");
+      const val = el.value.trim();
+      if (!val) return;
+      state.data.currency = val;
+      saveData();
+      render();
+    },
+
+    exportData() {
+      const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fund-tracker-backup-${todayStr()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    },
+
+    importData(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (!parsed.funds || !Array.isArray(parsed.funds)) throw new Error("Invalid file format.");
+          if (!confirm("This will replace all current data with the imported backup. Continue?")) return;
+          state.data = parsed;
+          if (!state.data.currency) state.data.currency = "£";
+          saveData();
+          state.view = "overview";
+          state.showSettings = false;
+          render();
+        } catch (e) {
+          alert("Could not read that file as a Fund Tracker backup: " + e.message);
+        }
+        evt.target.value = "";
+      };
+      reader.readAsText(file);
+    },
+  };
+
+  function showErr(el, msg) {
+    el.textContent = msg;
+    el.style.display = "block";
+    setTimeout(() => { el.style.display = "none"; }, 4000);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && state.showSettings) app.closeSettings();
+  });
+
+  window.app = app;
+  render();
+
+  // Register service worker for offline capability and installability
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+    });
+  }
+})();
 </script>
-</div>
-
-
-</body></html>
+</body>
+</html>
