@@ -565,6 +565,19 @@
     margin-bottom: 20px;
   }
 
+  .pin-subtitle {
+    display: none;
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    margin: 0 0 18px 0;
+    padding: 0 20px;
+    line-height: 1.5;
+    max-width: 340px;
+  }
+
+  #pin-confirm { display: none; }
+
   .pin-form {
     display: flex;
     flex-direction: column;
@@ -623,11 +636,16 @@
 
 <div id="pin-screen" style="display: flex;">
   <div class="pin-icon">🔑</div>
-  <h2>Passwords</h2>
+  <h2 id="pin-title">Passwords</h2>
+  <p id="pin-subtitle" class="pin-subtitle">
+    Create a PIN to protect your data on this device.<br>
+    If you forget it, your saved data cannot be recovered.
+  </p>
   <div class="pin-form">
     <input type="password" id="pin-input" placeholder="• • • •" autocomplete="off">
+    <input type="password" id="pin-confirm" placeholder="Confirm PIN" autocomplete="off">
     <div class="pin-error" id="pin-error"></div>
-    <button onclick="checkPin()">Unlock</button>
+    <button id="pin-button" onclick="submitPin()">Unlock</button>
   </div>
 </div>
 
@@ -1005,31 +1023,73 @@ function importFile() {
   input.click();
 }
 // ── PIN AUTH ──────────────────────────────────────────────────────────────────
-const PIN_HASH = '06aed7e09c148e73bb324fc552c7f0e29d3772bcadf0ddcf9769ee3f3890b42a';
+const PIN_HASH_KEY = 'pw_pin_hash';
 const PIN_SESSION_KEY = 'pw_pin_auth';
 
-if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
+const isFirstRun = !localStorage.getItem(PIN_HASH_KEY);
+
+if (isFirstRun) {
+  document.getElementById('pin-title').textContent = 'Create your PIN';
+  document.getElementById('pin-subtitle').style.display = 'block';
+  document.getElementById('pin-confirm').style.display = 'block';
+  document.getElementById('pin-button').textContent = 'Create PIN';
+  document.getElementById('pin-input').placeholder = 'Choose a PIN';
+  setTimeout(() => document.getElementById('pin-input').focus(), 50);
+} else if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
   unlockApp();
 } else {
   setTimeout(() => document.getElementById('pin-input').focus(), 50);
 }
 
 document.getElementById('pin-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') checkPin();
+  if (e.key === 'Enter') {
+    if (isFirstRun) document.getElementById('pin-confirm').focus();
+    else submitPin();
+  }
+  document.getElementById('pin-error').textContent = '';
+});
+document.getElementById('pin-confirm').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitPin();
   document.getElementById('pin-error').textContent = '';
 });
 
-async function checkPin() {
+async function hashPin(pin) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function submitPin() {
   const val = document.getElementById('pin-input').value;
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(val));
-  const hash = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  if (hash === PIN_HASH) {
+  const errEl = document.getElementById('pin-error');
+
+  if (!val) { errEl.textContent = 'Please enter a PIN'; return; }
+
+  if (isFirstRun) {
+    const confirmVal = document.getElementById('pin-confirm').value;
+    if (val.length < 4) {
+      errEl.textContent = 'PIN must be at least 4 characters';
+      return;
+    }
+    if (val !== confirmVal) {
+      errEl.textContent = 'PINs do not match';
+      document.getElementById('pin-confirm').value = '';
+      document.getElementById('pin-confirm').focus();
+      return;
+    }
+    const hash = await hashPin(val);
+    localStorage.setItem(PIN_HASH_KEY, hash);
     sessionStorage.setItem(PIN_SESSION_KEY, 'true');
     unlockApp();
   } else {
-    document.getElementById('pin-error').textContent = 'Incorrect PIN';
-    document.getElementById('pin-input').value = '';
-    document.getElementById('pin-input').focus();
+    const hash = await hashPin(val);
+    if (hash === localStorage.getItem(PIN_HASH_KEY)) {
+      sessionStorage.setItem(PIN_SESSION_KEY, 'true');
+      unlockApp();
+    } else {
+      errEl.textContent = 'Incorrect PIN';
+      document.getElementById('pin-input').value = '';
+      document.getElementById('pin-input').focus();
+    }
   }
 }
 
