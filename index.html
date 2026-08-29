@@ -640,12 +640,16 @@
   .pin-alt a:hover { opacity: 1; }
   .pin-busy { margin-top: 12px; font-size: 0.85rem; opacity: 0.75; text-align: center; }
   #lock-btn {
-    position: fixed; top: 14px; right: 14px; z-index: 40;
+    position: fixed; top: 14px; right: 14px; z-index: 150;
     border: none; border-radius: 999px; cursor: pointer;
     background: rgba(0,0,0,0.28); color: #fff;
     font-size: 0.78rem; padding: 7px 13px; line-height: 1;
   }
   #lock-btn:active { opacity: 0.75; }
+  #entry-count {
+    font-size: 0.78rem; opacity: 0.6; margin: 2px 0 12px;
+    letter-spacing: 0.02em;
+  }
 </style>
 
 <div id="pin-screen" style="display: flex;">
@@ -666,6 +670,7 @@
 
 <header>
   <h1>🔑 Passwords</h1>
+  <div id="entry-count"></div>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
     <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -1035,6 +1040,7 @@ function saveEntry() {
   }
 
   saveData(data);
+  renderCount();
   hideAddForm();
   searchEl.value = org;
   clearBtn.style.display = 'block';
@@ -1058,6 +1064,7 @@ function deleteCurrentEntry() {
   const org = currentEntry.org;
   data = data.filter(d => d.org !== currentEntry.org);
   saveData(data);
+  renderCount();
   hideConfirm();
   clearSearch();
   showToast('Deleted: ' + org);
@@ -1107,6 +1114,7 @@ function importFile() {
         if (!Array.isArray(imported)) throw new Error('Invalid format');
         data = normaliseEntries(imported);
         saveData(data);
+        renderCount();
         searchEl.value = '';
         clearSearch();
         showToast('Imported ' + data.length + ' entries — search to find them');
@@ -1336,8 +1344,18 @@ function skipSessionPin() {
   unlockApp();
 }
 
+function renderCount() {
+  const c = document.getElementById('entry-count');
+  if (!c) return;
+  const n = data.length;
+  c.textContent = n === 0 ? 'No entries yet'
+                : n === 1 ? '1 entry'
+                : n + ' entries';
+}
+
 function unlockApp() {
   pendingKey = null;
+  renderCount();
   el('pin-screen').style.display = 'none';
   el('app-content').style.display = 'block';
   el('pin-input').value = '';
