@@ -634,22 +634,35 @@
 </head>
 <body>
 
+<style>
+  .pin-alt { margin-top: 14px; font-size: 0.85rem; text-align: center; }
+  .pin-alt a { color: inherit; opacity: 0.75; text-decoration: underline; cursor: pointer; }
+  .pin-alt a:hover { opacity: 1; }
+  .pin-busy { margin-top: 12px; font-size: 0.85rem; opacity: 0.75; text-align: center; }
+  #lock-btn {
+    position: fixed; top: 14px; right: 14px; z-index: 40;
+    border: none; border-radius: 999px; cursor: pointer;
+    background: rgba(0,0,0,0.28); color: #fff;
+    font-size: 0.78rem; padding: 7px 13px; line-height: 1;
+  }
+  #lock-btn:active { opacity: 0.75; }
+</style>
+
 <div id="pin-screen" style="display: flex;">
   <div class="pin-icon">🔑</div>
   <h2 id="pin-title">Passwords</h2>
-  <p id="pin-subtitle" class="pin-subtitle">
-    Create a PIN to protect your data on this device.<br>
-    If you forget it, your saved data cannot be recovered.
-  </p>
+  <p id="pin-subtitle" class="pin-subtitle"></p>
   <div class="pin-form">
-    <input type="password" id="pin-input" placeholder="• • • •" autocomplete="off">
-    <input type="password" id="pin-confirm" placeholder="Confirm PIN" autocomplete="off">
+    <input type="password" id="pin-input" placeholder="Passphrase" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <input type="password" id="pin-confirm" placeholder="Confirm passphrase" autocomplete="off" autocapitalize="off" spellcheck="false" style="display:none">
     <div class="pin-error" id="pin-error"></div>
     <button id="pin-button" onclick="submitPin()">Unlock</button>
+    <div class="pin-alt" id="pin-alt" style="display:none"></div>
   </div>
 </div>
 
 <div id="app-content" style="display: none;">
+<button id="lock-btn" onclick="lockVault()" title="Lock the vault">🔒 Lock</button>
 
 <header>
   <h1>🔑 Passwords</h1>
@@ -747,27 +760,99 @@
 // Paste your full dataset here. Each entry: { org, email, password, notes }
 // Entries are kept in localStorage so new additions persist across sessions.
 
-const SEED_DATA = [];
-
 // ── STORAGE ───────────────────────────────────────────────────────────────────
-const STORE_KEY = 'pw_entries_20260611';
+// The vault is held on disk only as an AES-GCM ciphertext. The key is derived
+// from the passphrase at unlock and lives in memory alone — it is never written
+// to localStorage or sessionStorage in usable form.
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch(e) {}
-  // First run: seed and save
-  saveData(SEED_DATA);
-  return SEED_DATA.slice();
-}
+const LEGACY_KEY  = 'pw_entries_20260611';   // old plaintext store, migrated then deleted
+const LEGACY_PIN  = 'pw_pin_hash';           // old PIN gate, no longer used
+const VAULT_KEY   = 'pw_vault_v2';           // encrypted envelope
+const SESSION_KEY = 'pw_session_v2';         // PIN-wrapped key, session lifetime only
+const AUTOLOCK_MS = 5 * 60 * 1000;
 
-function saveData(entries) {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); } catch(e) {}
-}
+const KDF_ITERATIONS = 600000;   // PBKDF2-SHA256; stored in the envelope so it can change
 
-let data = loadData();
+let data = [];            // decrypted entries, in memory only while unlocked
+let vaultKey = null;      // CryptoKey, in memory only while unlocked
 let currentEntry = null;
+
+const b64 = {
+  enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))),
+  dec: (str) => Uint8Array.from(atob(str), c => c.charCodeAt(0)),
+};
+
+async function deriveKey(passphrase, salt, iterations) {
+  const base = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
+    base,
+    { name: 'AES-GCM', length: 256 },
+    true,                       // extractable, so a session PIN can wrap it
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptVault(entries, key, salt, iterations) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const pt = new TextEncoder().encode(JSON.stringify(entries));
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, pt);
+  return {
+    v: 2,
+    kdf: 'PBKDF2-SHA256',
+    iterations,
+    salt: b64.enc(salt),
+    iv: b64.enc(iv),
+    ct: b64.enc(ct),
+  };
+}
+
+/** Throws if the passphrase is wrong — AES-GCM's tag check does the work. */
+async function decryptVault(envelope, key) {
+  const pt = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: b64.dec(envelope.iv) }, key, b64.dec(envelope.ct)
+  );
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+
+function readEnvelope() {
+  try { return JSON.parse(localStorage.getItem(VAULT_KEY) || 'null'); }
+  catch (e) { return null; }
+}
+
+/** Give every entry a stable id and a modification time. */
+function normaliseEntries(entries) {
+  const now = Date.now();
+  return (Array.isArray(entries) ? entries : []).map(e => ({
+    id: e.id || (crypto.randomUUID ? crypto.randomUUID()
+                                   : 'e' + Math.random().toString(36).slice(2, 12)),
+    org: e.org || '',
+    email: e.email || '',
+    password: e.password || '',
+    notes: e.notes || '',
+    updated: e.updated || now,
+  }));
+}
+
+/** Re-encrypt and persist. Called after every change. */
+async function saveData(entries) {
+  // Callers treat this as fire-and-forget, so it must never reject: a silent
+  // failure here would look exactly like a successful save.
+  if (!vaultKey) { showToast('Vault is locked — not saved'); return false; }
+  try {
+    const env = readEnvelope();
+    const salt = env ? b64.dec(env.salt) : crypto.getRandomValues(new Uint8Array(16));
+    const iterations = (env && env.iterations) || KDF_ITERATIONS;
+    const fresh = await encryptVault(entries, vaultKey, salt, iterations);
+    localStorage.setItem(VAULT_KEY, JSON.stringify(fresh));
+    return true;
+  } catch (e) {
+    showToast('NOT SAVED: ' + (e.message || e));
+    return false;
+  }
+}
 
 // ── SEARCH ────────────────────────────────────────────────────────────────────
 const searchEl   = document.getElementById('search');
@@ -927,11 +1012,15 @@ function saveEntry() {
   const org = document.getElementById('f-org').value.trim();
   if (!org) { showToast('Please enter an organisation name'); return; }
 
+  const existing = data.find(d => d.org.toLowerCase() === org.toLowerCase());
   const entry = {
+    id: (existing && existing.id) || (currentEntry && currentEntry.id) ||
+        (crypto.randomUUID ? crypto.randomUUID() : 'e' + Math.random().toString(36).slice(2, 12)),
     org,
     email:    document.getElementById('f-email').value.trim(),
     password: document.getElementById('f-password').value.trim(),
-    notes:    document.getElementById('f-notes').value.trim()
+    notes:    document.getElementById('f-notes').value.trim(),
+    updated:  Date.now()
   };
 
   const idx = data.findIndex(d => d.org.toLowerCase() === org.toLowerCase());
@@ -986,6 +1075,13 @@ function showToast(msg) {
 // Reads the current HTML file, splices in the live data, and downloads it.
 // The exported file is a complete standalone copy with all edits baked in.
 function exportFile() {
+  // The export is deliberately plain JSON: it is the recovery path if the
+  // passphrase is ever forgotten. That makes the file itself unprotected.
+  if (!confirm(
+    'This backup is NOT encrypted — anyone who opens the file can read every entry.\n\n' +
+    'It is your only way back in if you forget your passphrase, so keep it, but keep it somewhere safe.\n\n' +
+    'Continue?'
+  )) return;
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -1009,7 +1105,7 @@ function importFile() {
       try {
         const imported = JSON.parse(ev.target.result);
         if (!Array.isArray(imported)) throw new Error('Invalid format');
-        data = imported.slice();
+        data = normaliseEntries(imported);
         saveData(data);
         searchEl.value = '';
         clearSearch();
@@ -1022,81 +1118,277 @@ function importFile() {
   };
   input.click();
 }
-// ── PIN AUTH ──────────────────────────────────────────────────────────────────
-const PIN_HASH_KEY = 'pw_pin_hash';
-const PIN_SESSION_KEY = 'pw_pin_auth';
+// ── UNLOCK ────────────────────────────────────────────────────────────────────
+// Three ways in:
+//   1. First run / migration  — choose a passphrase, vault is created or converted
+//   2. Passphrase             — derives the key, decrypts the vault
+//   3. Session PIN            — unwraps a key already unlocked earlier this session
+//
+// The session PIN is convenience, not a second lock. It only exists while the
+// browser session does, and a short PIN cannot resist an offline attack. The
+// passphrase is what actually protects the data at rest.
 
-const isFirstRun = !localStorage.getItem(PIN_HASH_KEY);
+const PIN_MAX_TRIES = 3;
+let pinTries = 0;
+let lockMode = 'passphrase';   // 'create' | 'passphrase' | 'pin' | 'setpin'
+let pendingKey = null;         // used between unlock and offering a session PIN
+let autolockTimer = null;
 
-if (isFirstRun) {
-  document.getElementById('pin-title').textContent = 'Create your PIN';
-  document.getElementById('pin-subtitle').style.display = 'block';
-  document.getElementById('pin-confirm').style.display = 'block';
-  document.getElementById('pin-button').textContent = 'Create PIN';
-  document.getElementById('pin-input').placeholder = 'Choose a PIN';
-  setTimeout(() => document.getElementById('pin-input').focus(), 50);
-} else if (sessionStorage.getItem(PIN_SESSION_KEY) === 'true') {
-  unlockApp();
-} else {
-  setTimeout(() => document.getElementById('pin-input').focus(), 50);
+const el = (id) => document.getElementById(id);
+
+function legacyEntries() {
+  try {
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : null;
+  } catch (e) { return null; }
 }
 
-document.getElementById('pin-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    if (isFirstRun) document.getElementById('pin-confirm').focus();
-    else submitPin();
-  }
-  document.getElementById('pin-error').textContent = '';
-});
-document.getElementById('pin-confirm').addEventListener('keydown', e => {
-  if (e.key === 'Enter') submitPin();
-  document.getElementById('pin-error').textContent = '';
-});
+function setLockMode(mode, message) {
+  lockMode = mode;
+  const title = el('pin-title'), sub = el('pin-subtitle'), input = el('pin-input'),
+        confirm = el('pin-confirm'), button = el('pin-button'), alt = el('pin-alt');
 
-async function hashPin(pin) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  el('pin-error').textContent = '';
+  input.value = ''; confirm.value = '';
+  confirm.style.display = 'none';
+  alt.style.display = 'none';
+  alt.innerHTML = '';
+
+  if (mode === 'create') {
+    const legacy = legacyEntries();
+    title.textContent = legacy ? 'Encrypt your vault' : 'Create a passphrase';
+    sub.innerHTML = legacy
+      ? 'Your ' + legacy.length + ' existing entries are currently stored unencrypted. ' +
+        'Choose a passphrase and they will be encrypted on this device.<br><br>' +
+        '<strong>If you forget it, the data cannot be recovered.</strong> Keep a JSON backup.'
+      : 'Choose a passphrase to encrypt your vault.<br>' +
+        'Several unrelated words work well.<br><br>' +
+        '<strong>If you forget it, the data cannot be recovered.</strong>';
+    sub.style.display = 'block';
+    input.placeholder = 'Passphrase';
+    confirm.placeholder = 'Confirm passphrase';
+    confirm.style.display = 'block';
+    button.textContent = 'Encrypt vault';
+  }
+
+  else if (mode === 'passphrase') {
+    title.textContent = 'Passwords';
+    sub.textContent = message || 'Enter your passphrase to unlock.';
+    sub.style.display = 'block';
+    input.placeholder = 'Passphrase';
+    button.textContent = 'Unlock';
+    if (sessionStorage.getItem(SESSION_KEY)) {
+      alt.style.display = 'block';
+      alt.innerHTML = '<a onclick="setLockMode(\'pin\')">Use session PIN instead</a>';
+    }
+  }
+
+  else if (mode === 'pin') {
+    title.textContent = 'Passwords';
+    sub.textContent = message || 'Enter your session PIN.';
+    sub.style.display = 'block';
+    input.placeholder = 'PIN';
+    button.textContent = 'Unlock';
+    alt.style.display = 'block';
+    alt.innerHTML = '<a onclick="setLockMode(\'passphrase\')">Use passphrase instead</a>';
+  }
+
+  else if (mode === 'setpin') {
+    title.textContent = 'Session PIN';
+    sub.innerHTML = 'Optional. Lets you get back in without retyping the passphrase, ' +
+                    'until you close the browser.<br><br>' +
+                    'It protects against someone picking up this device — not against ' +
+                    'someone who copies its storage.';
+    sub.style.display = 'block';
+    input.placeholder = 'Choose a PIN (4+ digits)';
+    button.textContent = 'Set PIN';
+    alt.style.display = 'block';
+    alt.innerHTML = '<a onclick="skipSessionPin()">Skip — ask for the passphrase every time</a>';
+  }
+
+  setTimeout(() => input.focus(), 50);
+}
+
+function busy(on, msg) {
+  const button = el('pin-button');
+  button.disabled = on;
+  button.textContent = on ? (msg || 'Working…')
+    : (lockMode === 'create' ? 'Encrypt vault' : lockMode === 'setpin' ? 'Set PIN' : 'Unlock');
 }
 
 async function submitPin() {
-  const val = document.getElementById('pin-input').value;
-  const errEl = document.getElementById('pin-error');
+  const val = el('pin-input').value;
+  const errEl = el('pin-error');
+  errEl.textContent = '';
+  if (!val) { errEl.textContent = 'Please enter something'; return; }
 
-  if (!val) { errEl.textContent = 'Please enter a PIN'; return; }
-
-  if (isFirstRun) {
-    const confirmVal = document.getElementById('pin-confirm').value;
-    if (val.length < 4) {
-      errEl.textContent = 'PIN must be at least 4 characters';
+  // ── create the vault, or convert an existing plaintext one
+  if (lockMode === 'create') {
+    if (val.length < 8) { errEl.textContent = 'Use at least 8 characters'; return; }
+    if (val !== el('pin-confirm').value) {
+      errEl.textContent = 'The two entries do not match';
+      el('pin-confirm').value = ''; el('pin-confirm').focus();
       return;
     }
-    if (val !== confirmVal) {
-      errEl.textContent = 'PINs do not match';
-      document.getElementById('pin-confirm').value = '';
-      document.getElementById('pin-confirm').focus();
-      return;
+    busy(true, 'Encrypting…');
+    try {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await deriveKey(val, salt, KDF_ITERATIONS);
+      const entries = normaliseEntries(legacyEntries() || []);
+      const env = await encryptVault(entries, key, salt, KDF_ITERATIONS);
+      localStorage.setItem(VAULT_KEY, JSON.stringify(env));
+      // Only now is it safe to drop the old plaintext copy.
+      localStorage.removeItem(LEGACY_KEY);
+      localStorage.removeItem(LEGACY_PIN);
+      vaultKey = key; data = entries;
+      pendingKey = key;
+      busy(false);
+      setLockMode('setpin');
+    } catch (e) {
+      busy(false);
+      errEl.textContent = 'Could not encrypt: ' + (e.message || e);
     }
-    const hash = await hashPin(val);
-    localStorage.setItem(PIN_HASH_KEY, hash);
-    sessionStorage.setItem(PIN_SESSION_KEY, 'true');
-    unlockApp();
-  } else {
-    const hash = await hashPin(val);
-    if (hash === localStorage.getItem(PIN_HASH_KEY)) {
-      sessionStorage.setItem(PIN_SESSION_KEY, 'true');
+    return;
+  }
+
+  // ── unlock with the passphrase
+  if (lockMode === 'passphrase') {
+    const env = readEnvelope();
+    if (!env) { setLockMode('create'); return; }
+    busy(true, 'Unlocking…');
+    try {
+      const key = await deriveKey(val, b64.dec(env.salt), env.iterations || KDF_ITERATIONS);
+      const entries = await decryptVault(env, key);   // throws if wrong
+      vaultKey = key; data = normaliseEntries(entries);
+      pendingKey = key;
+      busy(false);
+      if (sessionStorage.getItem(SESSION_KEY)) { unlockApp(); }
+      else { setLockMode('setpin'); }
+    } catch (e) {
+      busy(false);
+      errEl.textContent = 'Incorrect passphrase';
+      el('pin-input').value = ''; el('pin-input').focus();
+    }
+    return;
+  }
+
+  // ── unlock with the session PIN
+  if (lockMode === 'pin') {
+    busy(true, 'Unlocking…');
+    try {
+      const wrap = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+      const wrapKey = await deriveKey(val, b64.dec(wrap.salt), wrap.iterations);
+      const raw = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: b64.dec(wrap.iv) }, wrapKey, b64.dec(wrap.key)
+      );
+      const key = await crypto.subtle.importKey(
+        'raw', raw, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']
+      );
+      const entries = await decryptVault(readEnvelope(), key);
+      vaultKey = key; data = normaliseEntries(entries);
+      pinTries = 0;
+      busy(false);
       unlockApp();
-    } else {
-      errEl.textContent = 'Incorrect PIN';
-      document.getElementById('pin-input').value = '';
-      document.getElementById('pin-input').focus();
+    } catch (e) {
+      busy(false);
+      pinTries++;
+      if (pinTries >= PIN_MAX_TRIES) {
+        sessionStorage.removeItem(SESSION_KEY);
+        pinTries = 0;
+        setLockMode('passphrase', 'Too many attempts. Enter your passphrase.');
+      } else {
+        el('pin-error').textContent = 'Incorrect PIN — ' +
+          (PIN_MAX_TRIES - pinTries) + ' attempt(s) left';
+        el('pin-input').value = ''; el('pin-input').focus();
+      }
     }
+    return;
+  }
+
+  // ── set a session PIN, wrapping the key we already hold
+  if (lockMode === 'setpin') {
+    if (!/^\d{4,}$/.test(val)) { errEl.textContent = 'Use at least 4 digits'; return; }
+    busy(true, 'Saving…');
+    try {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const iterations = 250000;
+      const wrapKey = await deriveKey(val, salt, iterations);
+      const raw = await crypto.subtle.exportKey('raw', pendingKey);
+      const wrapped = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrapKey, raw);
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        salt: b64.enc(salt), iv: b64.enc(iv), iterations, key: b64.enc(wrapped)
+      }));
+      busy(false);
+      unlockApp();
+    } catch (e) {
+      busy(false);
+      errEl.textContent = 'Could not set PIN: ' + (e.message || e);
+    }
+    return;
   }
 }
 
-function unlockApp() {
-  document.getElementById('pin-screen').style.display = 'none';
-  document.getElementById('app-content').style.display = 'block';
+function skipSessionPin() {
+  sessionStorage.removeItem(SESSION_KEY);
+  unlockApp();
 }
+
+function unlockApp() {
+  pendingKey = null;
+  el('pin-screen').style.display = 'none';
+  el('app-content').style.display = 'block';
+  el('pin-input').value = '';
+  el('pin-confirm').value = '';
+  resetAutolock();
+}
+
+/** Drop the key and the decrypted data, and go back to the lock screen. */
+function lockVault() {
+  vaultKey = null;
+  pendingKey = null;
+  data = [];
+  currentEntry = null;
+  clearTimeout(autolockTimer);
+  if (typeof clearSearch === 'function') { try { clearSearch(); } catch (e) {} }
+  el('app-content').style.display = 'none';
+  el('pin-screen').style.display = 'flex';
+  setLockMode(sessionStorage.getItem(SESSION_KEY) ? 'pin' : 'passphrase');
+}
+
+function resetAutolock() {
+  clearTimeout(autolockTimer);
+  if (!vaultKey) return;
+  autolockTimer = setTimeout(() => {
+    if (vaultKey) lockVault();
+  }, AUTOLOCK_MS);
+}
+
+['click', 'keydown', 'touchstart'].forEach(evt =>
+  document.addEventListener(evt, () => { if (vaultKey) resetAutolock(); }, { passive: true })
+);
+
+el('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (lockMode === 'create') el('pin-confirm').focus();
+    else submitPin();
+  }
+  el('pin-error').textContent = '';
+});
+el('pin-confirm').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitPin();
+  el('pin-error').textContent = '';
+});
+
+// ── Decide which screen to show on load
+(function initLock() {
+  const env = readEnvelope();
+  if (!env) setLockMode('create');                                  // new, or migrating
+  else if (sessionStorage.getItem(SESSION_KEY)) setLockMode('pin'); // same session
+  else setLockMode('passphrase');
+})();
 
 // ── SERVICE WORKER ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
