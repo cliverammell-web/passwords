@@ -885,6 +885,9 @@ async function saveData(entries) {
     const iterations = (env && env.iterations) || KDF_ITERATIONS;
     const fresh = await encryptVault(entries, vaultKey, salt, iterations);
     localStorage.setItem(VAULT_KEY, JSON.stringify(fresh));
+    // Auto-push to cloud if sync is configured
+    const _ss = getSyncSettings();
+    if (_ss) setTimeout(() => pushVault(_ss).catch(() => {}), 500);
     return true;
   } catch (e) {
     showToast('NOT SAVED: ' + (e.message || e));
@@ -1394,6 +1397,12 @@ function unlockApp() {
   el('pin-input').value = '';
   el('pin-confirm').value = '';
   resetAutolock();
+  // Auto-sync on unlock if configured
+  const _ss = getSyncSettings();
+  if (_ss) {
+    setSyncPill('⚙ Sync', 'var(--muted)');
+    setTimeout(() => syncNow(), 800);
+  }
 }
 
 /** Drop the key and the decrypted data, and go back to the lock screen. */
@@ -1584,27 +1593,6 @@ async function syncNow() {
     setSyncPill('✗ Error', '#c0392b');
     document.getElementById('sync-status-msg').textContent = 'Error: ' + (e.message || e);
     setTimeout(() => setSyncPill('⚙ Sync', 'var(--muted)'), 5000);
-  }
-}
-
-// Auto-sync after every save
-const _origSaveData = saveData;
-async function saveData(entries) {
-  const ok = await _origSaveData(entries);
-  if (ok && getSyncSettings()) {
-    setTimeout(() => pushVault(getSyncSettings()).catch(() => {}), 500);
-  }
-  return ok;
-}
-
-// Show pill and auto-sync on unlock
-const _origUnlockApp = unlockApp;
-function unlockApp() {
-  _origUnlockApp();
-  const settings = getSyncSettings();
-  if (settings) {
-    setSyncPill('⚙ Sync', 'var(--muted)');
-    setTimeout(() => syncNow(), 800);
   }
 }
 
