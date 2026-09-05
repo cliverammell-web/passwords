@@ -1,5 +1,5 @@
 // Network-first service worker — always tries to fetch fresh, falls back to cache.
-const CACHE = 'pw-cache-v6';
+const CACHE = 'pw-cache-v7';
 const BASE  = '/passwords/';
 const ASSETS = [BASE, BASE + 'index.html', BASE + 'manifest.json',
                 BASE + 'icon-192.png', BASE + 'icon-512.png'];
