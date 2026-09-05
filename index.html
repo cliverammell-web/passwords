@@ -670,7 +670,10 @@
 
 <header>
   <h1>🔑 Passwords</h1>
-  <div id="entry-count"></div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+    <div id="entry-count"></div>
+    <span id="sync-pill" onclick="openSyncSettings()" title="Sync status" style="display:none;cursor:pointer;font-size:11px;letter-spacing:0.06em;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">⚙ Sync</span>
+  </div>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
     <input type="text" id="search" placeholder="Type a company name…" autocomplete="off" autocorrect="off" spellcheck="false">
@@ -759,6 +762,36 @@
 <button id="fab-import" onclick="importFile()" title="Import JSON backup">📥</button>
 <button id="fab" onclick="showAddForm(false)" title="Add new entry">+</button>
 <div id="toast"></div>
+
+<!-- Sync settings modal -->
+<div id="sync-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;width:100%;max-width:340px;overflow:hidden;">
+    <div style="background:var(--surface2);padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:15px;font-weight:bold;letter-spacing:0.04em;">Cloud Sync</span>
+      <button onclick="closeSyncSettings()" style="background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1;padding:0 4px;">✕</button>
+    </div>
+    <div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label style="display:block;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Worker URL</label>
+        <input type="url" id="sync-url" placeholder="https://crapps-sync.workers.dev" style="width:100%;padding:9px 12px;font-size:14px;font-family:inherit;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Username</label>
+        <input type="text" id="sync-user" placeholder="clive" autocomplete="off" autocorrect="off" autocapitalize="off" style="width:100%;padding:9px 12px;font-size:14px;font-family:inherit;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
+      </div>
+      <div>
+        <label style="display:block;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Token</label>
+        <input type="password" id="sync-token" placeholder="your-sync-token" autocomplete="off" style="width:100%;padding:9px 12px;font-size:14px;font-family:inherit;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
+      </div>
+      <div id="sync-status-msg" style="font-size:12px;color:var(--muted);min-height:16px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveSync()" style="flex:1;padding:11px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-family:inherit;letter-spacing:0.06em;cursor:pointer;">Connect</button>
+        <button onclick="syncNow()" id="sync-now-btn" style="flex:1;padding:11px;background:var(--surface2);color:var(--text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;letter-spacing:0.06em;cursor:pointer;">Sync now</button>
+      </div>
+      <button onclick="disconnectSync()" style="padding:9px;background:none;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;color:var(--muted);cursor:pointer;letter-spacing:0.06em;">Disconnect</button>
+    </div>
+  </div>
+</div>
 
 <script>
 // ── DATA ──────────────────────────────────────────────────────────────────────
@@ -1407,6 +1440,173 @@ el('pin-confirm').addEventListener('keydown', e => {
   else if (sessionStorage.getItem(SESSION_KEY)) setLockMode('pin'); // same session
   else setLockMode('passphrase');
 })();
+
+// ── CLOUD SYNC ────────────────────────────────────────────────────────────────
+// Pushes/pulls the encrypted vault envelope to Cloudflare Workers KV.
+// The passphrase never leaves the device — only the AES-GCM ciphertext travels.
+
+const SYNC_SETTINGS_KEY = 'pw_sync_settings';
+const SYNC_REV_KEY      = 'pw_sync_rev';
+const SYNC_APP          = 'passwords';
+
+function getSyncSettings() {
+  try { return JSON.parse(localStorage.getItem(SYNC_SETTINGS_KEY)) || null; }
+  catch (e) { return null; }
+}
+
+function syncEndpoint(settings) {
+  return settings.url.replace(/\/$/, '') + '/v1/state?app=' + SYNC_APP;
+}
+
+function syncHeaders(settings) {
+  const user = (settings.user || '').trim();
+  const token = (settings.token || '').trim();
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + (user ? user + ':' + token : token),
+  };
+}
+
+function setSyncPill(text, color) {
+  const pill = document.getElementById('sync-pill');
+  if (!pill) return;
+  pill.style.display = 'inline-block';
+  pill.textContent = text;
+  pill.style.color = color || 'var(--muted)';
+  pill.style.borderColor = color || 'var(--border)';
+}
+
+function openSyncSettings() {
+  const s = getSyncSettings();
+  if (s) {
+    document.getElementById('sync-url').value   = s.url   || '';
+    document.getElementById('sync-user').value  = s.user  || '';
+    document.getElementById('sync-token').value = s.token || '';
+  }
+  document.getElementById('sync-status-msg').textContent = '';
+  document.getElementById('sync-modal').style.display = 'flex';
+}
+
+function closeSyncSettings() {
+  document.getElementById('sync-modal').style.display = 'none';
+}
+
+function saveSync() {
+  const url   = document.getElementById('sync-url').value.trim();
+  const user  = document.getElementById('sync-user').value.trim();
+  const token = document.getElementById('sync-token').value.trim();
+  if (!url || !token) {
+    document.getElementById('sync-status-msg').textContent = 'URL and token are required';
+    return;
+  }
+  localStorage.setItem(SYNC_SETTINGS_KEY, JSON.stringify({ url, user, token }));
+  document.getElementById('sync-status-msg').textContent = 'Settings saved — syncing…';
+  syncNow();
+}
+
+function disconnectSync() {
+  localStorage.removeItem(SYNC_SETTINGS_KEY);
+  localStorage.removeItem(SYNC_REV_KEY);
+  const pill = document.getElementById('sync-pill');
+  if (pill) pill.style.display = 'none';
+  closeSyncSettings();
+  showToast('Sync disconnected');
+}
+
+async function pushVault(settings) {
+  const envelope = readEnvelope();
+  if (!envelope) return;
+  const rev = parseInt(localStorage.getItem(SYNC_REV_KEY) || '0', 10);
+  const body = JSON.stringify({ data: envelope, rev });
+  const res = await fetch(syncEndpoint(settings), {
+    method: 'POST',
+    headers: syncHeaders(settings),
+    body,
+  });
+  if (!res.ok) throw new Error('Push failed: ' + res.status);
+  const json = await res.json();
+  if (json.rev) localStorage.setItem(SYNC_REV_KEY, String(json.rev));
+}
+
+async function pullVault(settings) {
+  const res = await fetch(syncEndpoint(settings), { headers: syncHeaders(settings) });
+  if (res.status === 404) return null; // nothing stored yet
+  if (!res.ok) throw new Error('Pull failed: ' + res.status);
+  const json = await res.json();
+  return json; // { data: envelope, rev }
+}
+
+async function syncNow() {
+  const settings = getSyncSettings();
+  if (!settings) return;
+  setSyncPill('⟳ Syncing…', 'var(--muted)');
+  document.getElementById('sync-status-msg').textContent = 'Syncing…';
+  try {
+    const remote = await pullVault(settings);
+    const localRev = parseInt(localStorage.getItem(SYNC_REV_KEY) || '0', 10);
+
+    if (remote && remote.data) {
+      const remoteRev = remote.rev || 0;
+      if (remoteRev > localRev) {
+        // Remote is newer — pull it down
+        localStorage.setItem(VAULT_KEY, JSON.stringify(remote.data));
+        localStorage.setItem(SYNC_REV_KEY, String(remoteRev));
+        // If vault is currently unlocked, re-decrypt with existing key
+        if (vaultKey) {
+          try {
+            const entries = await decryptVault(remote.data, vaultKey);
+            data = normaliseEntries(entries);
+            renderCount();
+            clearSearch();
+            showToast('Synced — ' + data.length + ' entries updated');
+          } catch (e) {
+            // Key doesn't match remote vault — lock and ask for passphrase
+            lockVault();
+            showToast('Remote vault updated — please unlock again');
+          }
+        }
+        setSyncPill('✓ Synced', '#2a7a4f');
+        document.getElementById('sync-status-msg').textContent = 'Pulled remote changes';
+      } else {
+        // Local is same or newer — push
+        await pushVault(settings);
+        setSyncPill('✓ Synced', '#2a7a4f');
+        document.getElementById('sync-status-msg').textContent = 'Pushed local changes';
+      }
+    } else {
+      // Nothing on remote yet — push local
+      await pushVault(settings);
+      setSyncPill('✓ Synced', '#2a7a4f');
+      document.getElementById('sync-status-msg').textContent = 'Uploaded to cloud';
+    }
+    setTimeout(() => setSyncPill('⚙ Sync', 'var(--muted)'), 3000);
+  } catch (e) {
+    setSyncPill('✗ Error', '#c0392b');
+    document.getElementById('sync-status-msg').textContent = 'Error: ' + (e.message || e);
+    setTimeout(() => setSyncPill('⚙ Sync', 'var(--muted)'), 5000);
+  }
+}
+
+// Auto-sync after every save
+const _origSaveData = saveData;
+async function saveData(entries) {
+  const ok = await _origSaveData(entries);
+  if (ok && getSyncSettings()) {
+    setTimeout(() => pushVault(getSyncSettings()).catch(() => {}), 500);
+  }
+  return ok;
+}
+
+// Show pill and auto-sync on unlock
+const _origUnlockApp = unlockApp;
+function unlockApp() {
+  _origUnlockApp();
+  const settings = getSyncSettings();
+  if (settings) {
+    setSyncPill('⚙ Sync', 'var(--muted)');
+    setTimeout(() => syncNow(), 800);
+  }
+}
 
 // ── SERVICE WORKER ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
