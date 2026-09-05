@@ -672,7 +672,7 @@
   <h1>🔑 Passwords</h1>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
     <div id="entry-count"></div>
-    <span id="sync-pill" onclick="openSyncSettings()" title="Sync status" style="display:none;cursor:pointer;font-size:11px;letter-spacing:0.06em;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">⚙ Sync</span>
+    <span id="sync-pill" onclick="openSyncSettings()" title="Sync status" style="cursor:pointer;font-size:11px;letter-spacing:0.06em;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">☁ Sync</span>
   </div>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
@@ -1479,7 +1479,6 @@ function syncHeaders(settings) {
 function setSyncPill(text, color) {
   const pill = document.getElementById('sync-pill');
   if (!pill) return;
-  pill.style.display = 'inline-block';
   pill.textContent = text;
   pill.style.color = color || 'var(--muted)';
   pill.style.borderColor = color || 'var(--border)';
