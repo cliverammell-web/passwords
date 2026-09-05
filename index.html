@@ -672,7 +672,7 @@
   <h1>🔑 Passwords</h1>
   <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
     <div id="entry-count"></div>
-    <span id="sync-pill" onclick="openSyncSettings()" title="Sync status" style="cursor:pointer;font-size:11px;letter-spacing:0.06em;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">☁ Sync</span>
+    <span id="sync-pill" onclick="openSyncSettings()" title="Sync settings" style="cursor:pointer;font-size:11px;letter-spacing:0.06em;padding:3px 9px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);">☁ Sync</span>
   </div>
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
@@ -1483,11 +1483,8 @@ function setSyncPill(text, color) {
 
 function openSyncSettings() {
   const s = getSyncSettings();
-  if (s) {
-    document.getElementById('sync-url').value   = s.url   || '';
-    document.getElementById('sync-user').value  = s.user  || '';
-    document.getElementById('sync-token').value = s.token || '';
-  }
+  document.getElementById('sync-url').value   = s ? (s.url || '') : 'https://crapps-sync.crapps.workers.dev';
+  document.getElementById('sync-token').value = s ? (s.token || '') : '';
   document.getElementById('sync-status-msg').textContent = '';
   document.getElementById('sync-modal').style.display = 'flex';
 }
