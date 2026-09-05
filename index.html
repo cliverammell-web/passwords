@@ -776,10 +776,6 @@
         <input type="url" id="sync-url" placeholder="https://crapps-sync.workers.dev" style="width:100%;padding:9px 12px;font-size:14px;font-family:inherit;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
       </div>
       <div>
-        <label style="display:block;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Username</label>
-        <input type="text" id="sync-user" placeholder="clive" autocomplete="off" autocorrect="off" autocapitalize="off" style="width:100%;padding:9px 12px;font-size:14px;font-family:inherit;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
-      </div>
-      <div>
         <label style="display:block;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;">Token</label>
         <input type="password" id="sync-token" placeholder="your-sync-token" autocomplete="off" style="width:100%;padding:9px 12px;font-size:14px;font-family:inherit;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);outline:none;">
       </div>
@@ -1464,15 +1460,16 @@ function getSyncSettings() {
 }
 
 function syncEndpoint(settings) {
-  return settings.url.replace(/\/$/, '') + '/v1/state?app=' + SYNC_APP;
+  return settings.url.replace(/\/$/, '') + '/v1/doc/' + SYNC_APP;
 }
 
 function syncHeaders(settings) {
-  const user = (settings.user || '').trim();
+  // Worker identifies the user from the token alone via SYNC_USERS secret.
+  // Username is not sent in the header — it's resolved server-side.
   const token = (settings.token || '').trim();
   return {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer ' + (user ? user + ':' + token : token),
+    'Authorization': 'Bearer ' + token,
   };
 }
 
@@ -1524,24 +1521,28 @@ function disconnectSync() {
 async function pushVault(settings) {
   const envelope = readEnvelope();
   if (!envelope) return;
-  const rev = parseInt(localStorage.getItem(SYNC_REV_KEY) || '0', 10);
-  const body = JSON.stringify({ data: envelope, rev });
+  const baseRev = parseInt(localStorage.getItem(SYNC_REV_KEY) || '0', 10);
+  const body = JSON.stringify({ data: envelope, baseRev, device: 'browser' });
   const res = await fetch(syncEndpoint(settings), {
-    method: 'POST',
+    method: 'PUT',
     headers: syncHeaders(settings),
     body,
   });
+  if (res.status === 409) {
+    const remote = await res.json();
+    if (remote.rev) localStorage.setItem(SYNC_REV_KEY, String(remote.rev));
+    throw new Error('conflict');
+  }
   if (!res.ok) throw new Error('Push failed: ' + res.status);
-  const json = await res.json();
-  if (json.rev) localStorage.setItem(SYNC_REV_KEY, String(json.rev));
+  const result = await res.json();
+  if (result.rev) localStorage.setItem(SYNC_REV_KEY, String(result.rev));
 }
 
 async function pullVault(settings) {
   const res = await fetch(syncEndpoint(settings), { headers: syncHeaders(settings) });
-  if (res.status === 404) return null; // nothing stored yet
+  if (res.status === 404) return null;
   if (!res.ok) throw new Error('Pull failed: ' + res.status);
-  const json = await res.json();
-  return json; // { data: envelope, rev }
+  return await res.json(); // { rev, updated, device, data }
 }
 
 async function syncNow() {
