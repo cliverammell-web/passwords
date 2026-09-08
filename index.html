@@ -764,7 +764,7 @@
 <div id="toast"></div>
 
 <!-- Sync settings modal -->
-<div id="sync-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:600;align-items:center;justify-content:center;padding:20px;">
+<div id="sync-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center;padding:20px;">
   <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:12px;width:100%;max-width:340px;overflow:hidden;">
     <div style="background:var(--surface2);padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:15px;font-weight:bold;letter-spacing:0.04em;">Cloud Sync</span>
@@ -1211,6 +1211,19 @@ function setLockMode(mode, message) {
     confirm.placeholder = 'Confirm passphrase';
     confirm.style.display = 'block';
     button.textContent = 'Encrypt vault';
+
+    // Clearing site data wipes the vault AND the sync settings, and the salt
+    // lives inside the vault — so the same passphrase alone cannot get back in.
+    // Offer the two real routes back before anyone creates an empty vault.
+    if (!legacy) {
+      alt.style.display = 'block';
+      alt.innerHTML =
+        '<div style="margin-bottom:8px">Had a vault on this device before?<br>' +
+        'Bring it back rather than starting again:</div>' +
+        '<a onclick="openSyncSettings()">Restore from cloud sync</a>' +
+        '<span style="opacity:0.5"> &nbsp;\u00b7&nbsp; </span>' +
+        '<a onclick="importFile()">Restore from a backup file</a>';
+    }
   }
 
   else if (mode === 'passphrase') {
@@ -1483,6 +1496,8 @@ function setSyncPill(text, color) {
 
 function openSyncSettings() {
   const s = getSyncSettings();
+  const pill = document.getElementById('sync-pill');
+  if (pill) pill.style.display = '';   // stays hidden after a disconnect otherwise
   document.getElementById('sync-url').value   = s ? (s.url || '') : 'https://crapps-sync.crapps.workers.dev';
   document.getElementById('sync-token').value = s ? (s.token || '') : '';
   document.getElementById('sync-status-msg').textContent = '';
@@ -1495,13 +1510,13 @@ function closeSyncSettings() {
 
 function saveSync() {
   const url   = document.getElementById('sync-url').value.trim();
-  const user  = document.getElementById('sync-user').value.trim();
   const token = document.getElementById('sync-token').value.trim();
   if (!url || !token) {
     document.getElementById('sync-status-msg').textContent = 'URL and token are required';
     return;
   }
-  localStorage.setItem(SYNC_SETTINGS_KEY, JSON.stringify({ url, user, token }));
+  // The Worker resolves the user from the token, so no username is stored.
+  localStorage.setItem(SYNC_SETTINGS_KEY, JSON.stringify({ url, token }));
   document.getElementById('sync-status-msg').textContent = 'Settings saved — syncing…';
   syncNow();
 }
@@ -1573,7 +1588,19 @@ async function syncNow() {
         }
         setSyncPill('✓ Synced', '#2a7a4f');
         document.getElementById('sync-status-msg').textContent = 'Pulled remote changes';
+        if (!vaultKey) {                       // pulled while locked — let them in
+          closeSyncSettings();
+          setLockMode('passphrase', 'Vault restored from the cloud. Enter your passphrase.');
+        }
       } else {
+        // Guard: an empty vault must never overwrite a remote one. This is the
+        // state you land in after clearing site data and creating a new vault.
+        if (Array.isArray(data) && data.length === 0) {
+          setSyncPill('⚠ Not pushed', '#a05a00');
+          document.getElementById('sync-status-msg').textContent =
+            'This device has an empty vault. Refusing to overwrite the cloud copy — unlock the restored vault first.';
+          return;
+        }
         // Local is same or newer — push
         await pushVault(settings);
         setSyncPill('✓ Synced', '#2a7a4f');
